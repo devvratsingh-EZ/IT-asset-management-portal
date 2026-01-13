@@ -23,7 +23,7 @@ from DB_utils import (
     get_all_employees, get_employee_by_id,
     create_asset, get_all_assets, get_asset_by_id,
     get_assignment_history, get_all_assignment_history,
-    update_asset_assignment
+    update_asset_assignment, get_summary_data
 )
 
 # Configure logging
@@ -365,6 +365,17 @@ async def get_history_api(asset_id: str):
     return {"success": True, "data": history}
 
 
+
+# ============== Summary API Routes ==============
+
+@app.get("/api/summary")
+async def get_summary_api():
+    """Get summary data from SummaryData view."""
+    data = get_summary_data()
+    return {"success": True, "data": data}
+
+
+
 # ============== Frontend Routes ==============
 
 if os.path.exists(os.path.join(FRONTEND_DIST_ABS, 'assets')):
@@ -393,6 +404,10 @@ async def asset_addition_page():
 
 @app.get("/asset_assignment", response_class=HTMLResponse)
 async def asset_assignment_page():
+    return await serve_frontend()
+
+@app.get("/summary", response_class=HTMLResponse)
+async def summary_page():
     return await serve_frontend()
 
 @app.get("/vite.svg")

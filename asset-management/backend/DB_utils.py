@@ -874,6 +874,33 @@ def update_asset_assignment(asset_id: str, new_employee_id: str, repair_status: 
             connection.close()
 
 
+def get_summary_data() -> list:
+    """Get summary data from SummaryData view."""
+    logger.info("FETCH REQUEST: Getting summary data")
+    connection = get_connection()
+    if not connection:
+        logger.warning("FETCH REQUEST: Database connection failed for summary")
+        return []
+    
+    try:
+        cursor = connection.cursor(dictionary=True)
+        cursor.execute("""
+            SELECT AssetType, Department, Brand, Model, Count
+            FROM SummaryData
+            ORDER BY AssetType, Department, Brand, Model
+        """)
+        results = cursor.fetchall()
+        logger.info(f"FETCH REQUEST: Retrieved {len(results)} summary rows")
+        return results
+    except Error as e:
+        logger.error(f"FETCH REQUEST: Error fetching summary data: {e}")
+        return []
+    finally:
+        if connection.is_connected():
+            cursor.close()
+            connection.close()
+
+
 def test_connection() -> bool:
     """Test if database connection is working."""
     connection = get_connection()

@@ -5,6 +5,7 @@ import { Dashboard } from './components/dashboard';
 import { AssetAddition } from './components/assetAddition';
 import { SidePanel } from './components/layout';
 import { APP_CONFIG } from './data/constants';
+import { Summary } from './components/summary';
 
 /**
  * Main Layout Component with Side Panel
@@ -16,11 +17,19 @@ function MainLayout({ user, onLogout }) {
 
   const getActivePage = () => {
     if (location.pathname === '/asset_addition') return 'addition';
-    return 'details';
+    if (location.pathname === '/asset_assignment') return 'details';
+    if (location.pathname === '/summary') return 'summary';
+    return 'summary';
   };
 
   const handleNavigate = (page) => {
-    navigate(page === 'addition' ? '/asset_addition' : '/asset_assignment');
+    if (page === 'addition') {
+      navigate('/asset_addition');
+    } else if (page === 'details') {
+      navigate('/asset_assignment');
+    } else {
+      navigate('/summary');
+    }
     if (window.innerWidth < 768) setSidebarOpen(false);
   };
 
@@ -53,10 +62,11 @@ function MainLayout({ user, onLogout }) {
         </header>
         <main className="app-content">
           <Routes>
+            <Route path="/summary" element={<Summary />} />
             <Route path="/asset_assignment" element={<Dashboard user={user} onLogout={handleLogoutClick} hideHeader={true} />} />
             <Route path="/asset_addition" element={<AssetAddition />} />
-            <Route path="*" element={<Navigate to="/asset_assignment" replace />} />
-          </Routes>
+            <Route path="*" element={<Navigate to="/summary" replace />} />
+        </Routes>
         </main>
         <footer className="app-footer">
           <p>© {APP_CONFIG.companyName} | Internal Use Only</p>
@@ -171,7 +181,7 @@ function AssetManagementApp() {
           path="/login"
           element={
             isAuthenticated ?
-              <Navigate to="/asset_assignment" replace /> :
+              <Navigate to="/summary" replace /> :
               <LoginScreen onLogin={handleLogin} />
           }
         />
