@@ -1,0 +1,51 @@
+/**
+ * Current Employee Styles
+ */
+.current-employee {
+  @apply p-6 rounded-xl;
+  background: linear-gradient(to bottom right, rgba(6, 182, 212, 0.1), rgba(20, 184, 166, 0.1));
+  border: 1px solid rgba(6, 182, 212, 0.2);
+}
+
+.current-employee__content { @apply flex items-start gap-4; }
+
+.current-employee__avatar {
+  @apply w-14 h-14 rounded-2xl flex items-center justify-center text-white font-bold text-xl;
+  background: linear-gradient(to bottom right, var(--color-primary), var(--color-secondary));
+  box-shadow: 0 10px 25px -5px var(--shadow-primary);
+}
+
+.current-employee__details { @apply flex-1 grid grid-cols-1 md:grid-cols-2 gap-4; }
+
+.current-employee__label {
+  @apply text-xs font-medium uppercase tracking-wider;
+  color: var(--color-text-muted);
+}
+
+.current-employee__value { @apply font-semibold; color: var(--color-text-primary); }
+.current-employee__value--email { @apply font-medium; color: var(--color-primary-light); }
+
+/* Not Assigned State */
+.current-employee__not-assigned {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 2rem;
+  text-align: center;
+}
+
+.current-employee__not-assigned-icon {
+  width: 64px;
+  height: 64px;
+  background: rgba(239, 68, 68, 0.1);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.current-employee__not-assigned-icon svg { width: 32px; height: 32px; color: #f87171; }
+.current-employee__not-assigned-title { color: #f1f5f9; font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem; }
+.current-employee__not-assigned-text { color: #94a3b8; font-size: 0.95rem; }

@@ -1,0 +1,57 @@
+/**
+ * Notification Styles
+ */
+
+/* Success Notification */
+.success-notification {
+  @apply fixed bottom-6 right-6 max-w-md p-6 shadow-2xl z-50;
+  background-color: rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: var(--radius-xl);
+}
+
+.success-notification__content { @apply flex items-start gap-4; }
+
+.success-notification__icon {
+  @apply p-2 rounded-xl;
+  background-color: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+}
+
+.success-notification__title { @apply font-semibold mb-2; color: #34d399; }
+.success-notification__summary { @apply space-y-1 text-sm; color: var(--color-text-secondary); }
+.success-notification__summary span { color: var(--color-text-primary); }
+
+.success-notification__note {
+  @apply mt-2 pt-2 text-xs italic;
+  border-top: 1px solid rgba(30, 41, 59, 0.5);
+  color: var(--color-text-muted);
+}
+
+/* Delete Notification */
+.delete-notification {
+  @apply fixed bottom-6 right-6 max-w-md p-5 shadow-2xl z-50 rounded-xl;
+  background-color: rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(12px);
+  animation: slide-in-right 0.4s ease-out;
+}
+
+.delete-notification--success { border: 1px solid rgba(16, 185, 129, 0.3); }
+.delete-notification--error { border: 1px solid rgba(239, 68, 68, 0.3); }
+.delete-notification__content { @apply flex items-start gap-4; }
+.delete-notification__icon { @apply p-2 rounded-xl flex-shrink-0; }
+.delete-notification__icon--success { background-color: rgba(16, 185, 129, 0.2); color: #34d399; }
+.delete-notification__icon--error { background-color: rgba(239, 68, 68, 0.2); color: #f87171; }
+.delete-notification__title { @apply font-semibold mb-1; }
+.delete-notification--success .delete-notification__title { color: #34d399; }
+.delete-notification--error .delete-notification__title { color: #f87171; }
+.delete-notification__message { @apply text-sm; color: var(--color-text-secondary); }
+.delete-notification__ids { @apply text-xs mt-2 font-mono; color: var(--color-text-muted); }
+
+.delete-notification__close {
+  @apply p-1 rounded transition-colors flex-shrink-0;
+  color: var(--color-text-muted);
+}
+
+.delete-notification__close:hover { color: var(--color-text-primary); }

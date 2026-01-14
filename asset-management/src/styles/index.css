@@ -1,0 +1,35 @@
+/**
+ * Main Style Entry Point
+ * Imports all modular CSS files
+ */
+
+@import "tailwindcss";
+
+/* Base */
+@import "./base/variables.css";
+@import "./base/animations.css";
+
+/* Layout */
+@import "./layout/app-layout.css";
+@import "./layout/app-header.css";
+@import "./layout/app-footer.css";
+@import "./layout/side-panel.css";
+
+/* Components */
+@import "./components/login.css";
+@import "./components/summary.css";
+@import "./components/delete-asset.css";
+@import "./components/dashboard.css";
+@import "./components/expandable-section.css";
+@import "./components/asset-overview.css";
+@import "./components/specifications.css";
+@import "./components/current-employee.css";
+@import "./components/assignment-history.css";
+@import "./components/update-asset-form.css";
+@import "./components/uploads-section.css";
+@import "./components/notifications.css";
+@import "./components/asset-addition.css";
+@import "./components/date-picker.css";
+@import "./components/data-preview-modal.css";
+@import "./components/asset-selector.css";
+@import "./components/filter-dropdown.css";

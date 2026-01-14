@@ -1,0 +1,31 @@
+.asset-overview__grid {
+  @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4;
+}
+
+.asset-overview__item {
+  @apply p-4 rounded-xl;
+  background-color: rgba(15, 23, 42, 0.5);
+  border: 1px solid var(--color-border);
+}
+
+.asset-overview__label {
+  @apply text-xs font-medium uppercase tracking-wider mb-1;
+  color: var(--color-text-muted);
+}
+
+.asset-overview__value {
+  @apply text-lg font-semibold;
+}
+
+.asset-overview__value--cyan {
+  color: #22d3ee;
+}
+.asset-overview__value--teal {
+  color: #2dd4bf;
+}
+.asset-overview__value--emerald {
+  color: #34d399;
+}
+.asset-overview__value--amber {
+  color: #fbbf24;
+}
