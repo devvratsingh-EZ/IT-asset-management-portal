@@ -1,0 +1,62 @@
+/**
+ * Assignment History Styles
+ */
+.assignment-history { @apply overflow-x-auto; }
+.assignment-history__table { @apply w-full; }
+.assignment-history__header-row { border-bottom: 1px solid rgba(51, 65, 85, 1); }
+
+.assignment-history__header-cell {
+  @apply text-left py-3 px-4 text-xs font-semibold uppercase tracking-wider;
+  color: var(--color-text-secondary);
+}
+
+.assignment-history__row {
+  @apply transition-colors;
+  border-bottom: 1px solid rgba(30, 41, 59, 0.5);
+}
+
+.assignment-history__row:hover { background-color: rgba(30, 41, 59, 0.3); }
+.assignment-history__cell { @apply py-4 px-4; }
+.assignment-history__cell--name { color: var(--color-text-primary); }
+.assignment-history__cell--date { color: var(--color-text-secondary); }
+
+.assignment-history__employee-id {
+  @apply px-2.5 py-1 rounded-lg text-sm font-mono;
+  background-color: rgba(30, 41, 59, 1);
+  color: var(--color-primary-light);
+}
+
+.assignment-history__status { @apply inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium; }
+
+.assignment-history__status--active {
+  background-color: rgba(16, 185, 129, 0.2);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #34d399;
+}
+
+.assignment-history__status-dot { @apply w-1.5 h-1.5 rounded-full animate-pulse; background-color: #34d399; }
+
+/* Empty History State */
+.assignment-history__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 2rem;
+  text-align: center;
+}
+
+.assignment-history__empty-icon {
+  width: 64px;
+  height: 64px;
+  background: rgba(251, 191, 36, 0.1);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.assignment-history__empty-icon svg { width: 32px; height: 32px; color: #fbbf24; }
+.assignment-history__empty-title { color: #f1f5f9; font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem; }
+.assignment-history__empty-text { color: #94a3b8; font-size: 0.95rem; }

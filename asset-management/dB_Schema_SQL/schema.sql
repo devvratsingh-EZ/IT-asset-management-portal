@@ -47,7 +47,8 @@ CREATE TABLE AssetData(
             GST FLOAT,
             WarrantyExpiry DATE,
             AssignedTo VARCHAR(250),
-            RepairStatus VARCHAR(10),
+            RepairStatus BOOL NOT NULL DEFAULT 0,
+            IsTempStatus BOOL NOT NULL DEFAULT 0,
             AssetImagePath VARCHAR (250),
             PuchaseReceiptsPath VARCHAR(250),
             WarrantyCardPath VARCHAR(250),
@@ -86,3 +87,20 @@ CREATE TABLE AssignmentHistory (
             FOREIGN KEY (AssetId) REFERENCES AssetData(AssetId) ON DELETE CASCADE,
             FOREIGN KEY (EmployeeId) REFERENCES PeopleData(NameId) ON DELETE CASCADE
         );
+
+CREATE OR REPLACE VIEW SummaryData AS
+            SELECT
+                a.AssetType,
+                COALESCE(p.Department, 'Not Assigned') AS Department,
+                a.Brand,
+                a.Model,
+                COUNT(*) AS Count
+            FROM AssetData a
+            LEFT JOIN PeopleData p 
+                ON a.AssignedTo = p.NameId
+            GROUP BY 
+                a.AssetType,
+                Department,
+                a.Brand,
+                a.Model
+            ORDER BY a.AssetType;

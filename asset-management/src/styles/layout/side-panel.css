@@ -1,0 +1,109 @@
+/**
+ * Side Panel Styles
+ */
+.side-panel {
+  @apply fixed left-0 top-0 h-full z-40 flex flex-col transition-all duration-300;
+  background-color: rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(12px);
+  border-right: 1px solid rgba(30, 41, 59, 1);
+}
+
+.side-panel--open { width: 280px; }
+.side-panel--closed { width: 72px; }
+
+.side-panel__overlay {
+  @apply fixed inset-0 z-30 md:hidden;
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.side-panel__mobile-toggle {
+  @apply fixed top-4 left-4 z-50 p-2 rounded-lg md:hidden;
+  background-color: rgba(30, 41, 59, 0.8);
+  border: 1px solid rgba(51, 65, 85, 1);
+  color: var(--color-text-primary);
+}
+
+.side-panel__header {
+  @apply flex items-center justify-between p-4;
+  border-bottom: 1px solid rgba(30, 41, 59, 1);
+}
+
+.side-panel__logo {
+  @apply flex items-center gap-3;
+}
+
+.side-panel__logo-icon {
+  @apply w-10 h-10 rounded-xl flex items-center justify-center text-white;
+  background: linear-gradient(to bottom right, var(--color-primary), var(--color-secondary));
+}
+
+.side-panel__logo-text {
+  @apply font-bold text-lg;
+  color: var(--color-text-primary);
+}
+
+.side-panel__toggle-btn {
+  @apply p-2 rounded-lg transition-colors;
+  color: var(--color-text-muted);
+}
+
+.side-panel__toggle-btn:hover {
+  background-color: rgba(30, 41, 59, 0.5);
+  color: var(--color-text-primary);
+}
+
+.side-panel__nav {
+  @apply flex-1 py-4 px-3 space-y-2;
+}
+
+.side-panel__nav-item {
+  @apply w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all relative;
+  color: var(--color-text-secondary);
+}
+
+.side-panel__nav-item:hover {
+  background-color: rgba(30, 41, 59, 0.5);
+  color: var(--color-text-primary);
+}
+
+.side-panel__nav-item--active {
+  background: linear-gradient(to right, rgba(6, 182, 212, 0.15), rgba(20, 184, 166, 0.15));
+  color: var(--color-primary-light);
+}
+
+.side-panel__nav-icon {
+  @apply flex-shrink-0 w-6 h-6 flex items-center justify-center;
+}
+
+.side-panel__nav-content {
+  @apply flex flex-col items-start;
+}
+
+.side-panel__nav-label {
+  @apply font-medium text-sm;
+}
+
+.side-panel__nav-description {
+  @apply text-xs;
+  color: var(--color-text-muted);
+}
+
+.side-panel__nav-indicator {
+  @apply absolute right-3 w-2 h-2 rounded-full;
+  background: linear-gradient(to right, var(--color-primary), var(--color-secondary));
+}
+
+.side-panel__footer {
+  @apply p-4 text-center;
+  border-top: 1px solid rgba(30, 41, 59, 1);
+}
+
+.side-panel__footer-text {
+  @apply text-xs;
+  color: var(--color-text-muted);
+}
+
+@media (max-width: 768px) {
+  .side-panel { @apply -translate-x-full; }
+  .side-panel--open { @apply translate-x-0; width: 280px; }
+}

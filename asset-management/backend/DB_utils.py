@@ -113,27 +113,27 @@ def init_database():
         
         # Create AssetData table
         cursor.execute("""
-        CREATE TABLE IF NOT EXISTS AssetData (
-            AssetId VARCHAR(100) PRIMARY KEY NOT NULL,
+        CREATE TABLE IF NOT EXISTS AssetData(
+			AssetId VARCHAR(100) PRIMARY KEY NOT NULL,
             SerialNo VARCHAR(150),
             AssetType VARCHAR(150),
             Brand VARCHAR(150),
-            Model VARCHAR(150),
+            Model VARCHAR(200),
             DateOfPurchase DATE,
             ProductCost FLOAT,
             GST FLOAT,
             WarrantyExpiry DATE,
-            AssignedTo VARCHAR(250) DEFAULT NULL,
-            RepairStatus BOOLEAN DEFAULT FALSE,
-            AssetImagePath VARCHAR(250),
-            PurchaseReceiptsPath VARCHAR(250),
+            AssignedTo VARCHAR(250),
+            RepairStatus BOOL NOT NULL DEFAULT 0,
+            IsTempStatus BOOL NOT NULL DEFAULT 0,
+            AssetImagePath VARCHAR (250),
+            PuchaseReceiptsPath VARCHAR(250),
             WarrantyCardPath VARCHAR(250),
             CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             UpdatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            FOREIGN KEY (AssignedTo) REFERENCES PeopleData(NameId) ON DELETE SET NULL,
+			FOREIGN KEY (AssignedTo) REFERENCES PeopleData (NameId) ON DELETE SET NULL,
             CONSTRAINT unique_serial_brand_type UNIQUE (SerialNo, Brand, AssetType)
-        )
-        """)
+            )""")
         logger.info("Table 'AssetData' ensured")
         
         # Create SpecData table
@@ -180,6 +180,26 @@ def init_database():
         )
         """)
         logger.info("Table 'AssignmentHistory' ensured")
+        
+        # Create SummaryData view
+
+        cursor.execute("""CREATE OR REPLACE VIEW SummaryData AS
+            SELECT
+                a.AssetType,
+                COALESCE(p.Department, 'Not Assigned') AS Department,
+                a.Brand,
+                a.Model,
+                COUNT(*) AS Count
+            FROM AssetData a
+            LEFT JOIN PeopleData p 
+                ON a.AssignedTo = p.NameId
+            GROUP BY 
+                a.AssetType,
+                Department,
+                a.Brand,
+                a.Model
+            ORDER BY a.AssetType""")
+        logger.info("View 'SummaryData' ensured")
         
         connection.commit()
         logger.info("Database initialization complete")
@@ -873,6 +893,74 @@ def update_asset_assignment(asset_id: str, new_employee_id: str, repair_status: 
             cursor.close()
             connection.close()
 
+
+def get_summary_data() -> list:
+    """Get summary data from SummaryData view."""
+    logger.info("FETCH REQUEST: Getting summary data")
+    connection = get_connection()
+    if not connection:
+        logger.warning("FETCH REQUEST: Database connection failed for summary")
+        return []
+    
+    try:
+        cursor = connection.cursor(dictionary=True)
+        cursor.execute("""
+            SELECT AssetType, Department, Brand, Model, Count
+            FROM SummaryData
+            ORDER BY AssetType, Department, Brand, Model
+        """)
+        results = cursor.fetchall()
+        logger.info(f"FETCH REQUEST: Retrieved {len(results)} summary rows")
+        return results
+    except Error as e:
+        logger.error(f"FETCH REQUEST: Error fetching summary data: {e}")
+        return []
+    finally:
+        if connection.is_connected():
+            cursor.close()
+            connection.close()
+
+
+def delete_assets_bulk(asset_ids: list) -> dict:
+    """Delete multiple assets by their IDs."""
+    logger.info(f"DELETE ASSETS: Deleting {len(asset_ids)} assets")
+    connection = get_connection()
+    if not connection:
+        raise Exception("Database connection failed")
+    
+    try:
+        cursor = connection.cursor()
+        connection.start_transaction()
+        
+        # Delete from SpecData first (foreign key constraint)
+        format_strings = ','.join(['%s'] * len(asset_ids))
+        cursor.execute(f"DELETE FROM SpecData WHERE AssetId IN ({format_strings})", tuple(asset_ids))
+        
+        # Delete from AssignmentHistory
+        cursor.execute(f"DELETE FROM AssignmentHistory WHERE AssetId IN ({format_strings})", tuple(asset_ids))
+        
+        # Delete from AssetData
+        cursor.execute(f"DELETE FROM AssetData WHERE AssetId IN ({format_strings})", tuple(asset_ids))
+        deleted_count = cursor.rowcount
+        
+        connection.commit()
+        logger.info(f"DELETE ASSETS: Successfully deleted {deleted_count} assets")
+        
+        return {
+            'success': True,
+            'deletedCount': deleted_count,
+            'message': f'Successfully deleted {deleted_count} asset(s)'
+        }
+        
+    except Error as e:
+        connection.rollback()
+        logger.error(f"DELETE ASSETS: Error - {e}")
+        raise
+    finally:
+        if connection.is_connected():
+            cursor.close()
+            connection.close()
+            
 
 def test_connection() -> bool:
     """Test if database connection is working."""

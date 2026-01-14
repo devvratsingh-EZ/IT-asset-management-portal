@@ -1,0 +1,137 @@
+/**
+ * Asset Addition Page Styles
+ */
+.asset-addition { @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8; }
+.asset-addition__header { @apply mb-8; }
+.asset-addition__title { @apply text-3xl font-bold; color: var(--color-text-primary); }
+.asset-addition__subtitle { @apply mt-1; color: var(--color-text-muted); }
+.asset-addition__sections { @apply space-y-4; }
+.asset-addition__form-grid { @apply grid grid-cols-1 md:grid-cols-2 gap-6; }
+.asset-addition__field { @apply space-y-2; }
+.asset-addition__label { @apply text-sm font-medium block; color: var(--color-text-secondary); }
+.asset-addition__required { color: #f87171; }
+
+.asset-addition__input {
+  @apply w-full py-3 px-4 rounded-xl transition-all;
+  background-color: rgba(15, 23, 42, 0.5);
+  border: 1px solid rgba(51, 65, 85, 1);
+  color: var(--color-text-primary);
+}
+
+.asset-addition__input::placeholder { color: var(--color-text-muted); }
+
+.asset-addition__input:focus {
+  @apply outline-none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.2);
+}
+
+.asset-addition__input--error { border-color: rgba(239, 68, 68, 0.5); }
+.asset-addition__input--with-icon { @apply pl-12; }
+.asset-addition__input-with-icon { @apply relative; }
+.asset-addition__input-with-icon svg { @apply absolute left-4 top-1/2 -translate-y-1/2; color: var(--color-text-muted); }
+
+.asset-addition__select {
+  @apply w-full py-3 px-4 rounded-xl transition-all cursor-pointer appearance-none;
+  background-color: rgba(15, 23, 42, 0.5);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  border: 1px solid rgba(51, 65, 85, 1);
+  color: var(--color-text-primary);
+}
+
+.asset-addition__select:focus {
+  @apply outline-none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.2);
+}
+
+.asset-addition__select--error { border-color: rgba(239, 68, 68, 0.5); }
+.asset-addition__error { @apply text-xs; color: #f87171; }
+
+.asset-addition__toggle {
+  @apply w-full flex items-center justify-between py-3 px-4 rounded-xl transition-all;
+  background-color: rgba(15, 23, 42, 0.5);
+  border: 1px solid rgba(51, 65, 85, 1);
+  color: var(--color-text-secondary);
+}
+
+.asset-addition__toggle:hover { border-color: var(--color-border-hover); }
+
+.asset-addition__toggle--active {
+  background-color: rgba(245, 158, 11, 0.2);
+  border-color: rgba(245, 158, 11, 0.5);
+  color: #fbbf24;
+}
+
+.asset-addition__toggle-label { @apply flex items-center gap-2; }
+.asset-addition__toggle-switch { @apply w-12 h-6 rounded-full relative transition-colors; background-color: rgba(51, 65, 85, 1); }
+.asset-addition__toggle-switch--on { background-color: #f59e0b; }
+.asset-addition__toggle-knob { @apply absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform; left: 4px; }
+.asset-addition__toggle-switch--on .asset-addition__toggle-knob { transform: translateX(24px); }
+
+/* Upload Section */
+.asset-addition__uploads-grid { @apply grid grid-cols-1 md:grid-cols-3 gap-6; }
+.asset-addition__upload-section { @apply space-y-3; }
+.asset-addition__upload-title { @apply flex items-center gap-2 text-sm font-medium; color: var(--color-text-secondary); }
+
+.asset-addition__dropzone {
+  @apply flex flex-col items-center justify-center p-6 text-center cursor-pointer transition-all rounded-xl;
+  border: 2px dashed rgba(51, 65, 85, 1);
+  color: var(--color-text-muted);
+}
+
+.asset-addition__dropzone:hover { border-color: var(--color-border-hover); background-color: rgba(30, 41, 59, 0.3); }
+.asset-addition__dropzone svg { @apply mb-2; }
+.asset-addition__dropzone span { @apply text-sm; }
+.asset-addition__dropzone-hint { @apply text-xs mt-1; color: var(--color-text-muted); }
+.asset-addition__file-input { @apply hidden; }
+.asset-addition__file-list { @apply space-y-2 mt-3; }
+.asset-addition__file-item { @apply flex items-center gap-2 px-3 py-2 rounded-lg; background-color: rgba(30, 41, 59, 0.5); color: var(--color-text-secondary); }
+.asset-addition__file-name { @apply flex-1 text-sm truncate; }
+.asset-addition__image-preview { @apply relative rounded-lg overflow-hidden; background-color: rgba(30, 41, 59, 0.5); }
+.asset-addition__image-preview img { @apply w-full h-24 object-cover; }
+.asset-addition__remove-btn { @apply absolute top-1 right-1 p-1 rounded-full transition-colors; background-color: rgba(0, 0, 0, 0.5); color: var(--color-text-muted); }
+.asset-addition__remove-btn:hover { background-color: rgba(239, 68, 68, 0.8); color: white; }
+
+/* Progress Notice */
+.asset-addition__progress-notice {
+  @apply flex items-center gap-3 px-4 py-3 mb-6 rounded-xl;
+  background-color: rgba(6, 182, 212, 0.1);
+  border: 1px solid rgba(6, 182, 212, 0.3);
+  color: var(--color-text-secondary);
+}
+
+.asset-addition__progress-notice svg { color: var(--color-primary-light); flex-shrink: 0; }
+.asset-addition__progress-notice strong { color: var(--color-primary-light); }
+
+/* Empty State */
+.asset-addition__empty-state { @apply col-span-2 text-center py-8; color: var(--color-text-muted); }
+.asset-addition__empty-state p { @apply text-sm; }
+
+/* Action Buttons */
+.asset-addition__actions { @apply flex flex-col sm:flex-row gap-4 pt-6; }
+
+.asset-addition__reset-btn {
+  @apply px-6 py-3 font-medium rounded-xl transition-all;
+  background-color: rgba(30, 41, 59, 0.5);
+  border: 1px solid rgba(51, 65, 85, 1);
+  color: var(--color-text-secondary);
+}
+
+.asset-addition__reset-btn:hover { background-color: rgba(30, 41, 59, 0.8); color: var(--color-text-primary); }
+
+.asset-addition__preview-btn {
+  @apply flex-1 sm:flex-none px-8 py-3 font-semibold rounded-xl transition-all flex items-center justify-center gap-2 text-white;
+  background: linear-gradient(to right, var(--color-primary), var(--color-secondary));
+  box-shadow: 0 10px 25px -5px var(--shadow-primary);
+}
+
+.asset-addition__preview-btn:hover:not(:disabled) {
+  background: linear-gradient(to right, var(--color-primary-light), var(--color-secondary-light));
+  box-shadow: 0 10px 25px -5px var(--shadow-primary-hover);
+  transform: translateY(-2px);
+}
+
+.asset-addition__preview-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }

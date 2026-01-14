@@ -10,19 +10,31 @@ import { Icons } from '../common/Icons';
  */
 const SidePanel = ({ isOpen, onToggle, activePage, onNavigate }) => {
   const navItems = [
-    {
-      id: 'details',
-      label: 'Asset Details',
-      icon: Icons.ClipboardList,
-      description: 'View & manage existing assets'
-    },
-    {
-      id: 'addition',
-      label: 'New Asset',
-      icon: Icons.Plus,
-      description: 'Add newly purchased assets'
-    }
-  ];
+  {
+    id: 'summary',
+    label: 'Summary',
+    icon: Icons.ClipboardList,
+    description: 'Asset overview & statistics'
+  },
+  {
+    id: 'details',
+    label: 'Asset Details',
+    icon: Icons.Package,
+    description: 'View & manage existing assets'
+  },
+  {
+    id: 'addition',
+    label: 'Add New Asset',
+    icon: Icons.Plus,
+    description: 'Add newly purchased/rented assets'
+  },
+  {
+    id: 'delete',
+    label: 'Delete Asset',
+    icon: Icons.X,
+    description: 'Remove assets from system'
+  }
+];
 
   return (
     <>

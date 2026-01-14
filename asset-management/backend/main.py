@@ -23,7 +23,7 @@ from DB_utils import (
     get_all_employees, get_employee_by_id,
     create_asset, get_all_assets, get_asset_by_id,
     get_assignment_history, get_all_assignment_history,
-    update_asset_assignment
+    update_asset_assignment, get_summary_data, delete_assets_bulk
 )
 
 # Configure logging
@@ -48,6 +48,9 @@ FRONTEND_DIST_ABS = os.path.abspath(os.path.join(os.path.dirname(__file__), FRON
 
 
 # ============== Pydantic Models ==============
+
+class BulkDeleteRequest(BaseModel):
+    assetIds: list[str]
 
 class LoginRequest(BaseModel):
     username: str
@@ -365,6 +368,29 @@ async def get_history_api(asset_id: str):
     return {"success": True, "data": history}
 
 
+
+# ============== Summary API Routes ==============
+
+@app.get("/api/summary")
+async def get_summary_api():
+    """Get summary data from SummaryData view."""
+    data = get_summary_data()
+    return {"success": True, "data": data}
+
+# ============== Delete Assets Routes ==============
+
+@app.delete("/api/assets/bulk-delete")
+async def bulk_delete_assets_api(request: BulkDeleteRequest):
+    """Delete multiple assets by IDs."""
+    logger.info(f"BULK DELETE API: Deleting {len(request.assetIds)} assets")
+    try:
+        result = delete_assets_bulk(request.assetIds)
+        return result
+    except Exception as e:
+        logger.error(f"BULK DELETE API: Error - {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ============== Frontend Routes ==============
 
 if os.path.exists(os.path.join(FRONTEND_DIST_ABS, 'assets')):
@@ -393,6 +419,14 @@ async def asset_addition_page():
 
 @app.get("/asset_assignment", response_class=HTMLResponse)
 async def asset_assignment_page():
+    return await serve_frontend()
+
+@app.get("/summary", response_class=HTMLResponse)
+async def summary_page():
+    return await serve_frontend()
+
+@app.get("/delete_asset", response_class=HTMLResponse)
+async def delete_asset_page():
     return await serve_frontend()
 
 @app.get("/vite.svg")
