@@ -47,7 +47,7 @@ CREATE TABLE AssetData(
             GST FLOAT,
             WarrantyExpiry DATE,
             AssignedTo VARCHAR(250),
-            RepairStatus BOOL NOT NULL DAFUALT 0,
+            RepairStatus BOOL NOT NULL DEFAULT 0,
             IsTempStatus BOOL NOT NULL DEFAULT 0,
             AssetImagePath VARCHAR (250),
             PuchaseReceiptsPath VARCHAR(250),

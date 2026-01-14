@@ -24,9 +24,15 @@ const SidePanel = ({ isOpen, onToggle, activePage, onNavigate }) => {
   },
   {
     id: 'addition',
-    label: 'New Asset',
+    label: 'Add New Asset',
     icon: Icons.Plus,
-    description: 'Add newly purchased assets'
+    description: 'Add newly purchased/rented assets'
+  },
+  {
+    id: 'delete',
+    label: 'Delete Asset',
+    icon: Icons.X,
+    description: 'Remove assets from system'
   }
 ];
 

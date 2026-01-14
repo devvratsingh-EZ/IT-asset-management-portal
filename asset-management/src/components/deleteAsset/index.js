@@ -1,0 +1,1 @@
+export { default as DeleteAsset } from './DeleteAsset';
