@@ -3,7 +3,7 @@
  */
 .app-layout {
   @apply min-h-screen flex;
-  background-color: var(--color-bg-dark);
+  background-color: #ffffff;
 }
 
 .app-layout__main {
@@ -22,4 +22,5 @@
 
 .app-content {
   @apply flex-1 relative;
+  background-color: #ffffff;
 }
