@@ -16,6 +16,11 @@ CREATE TABLE AssetTypes (
         );
 
 
+CREATE TABLE BrandData (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            brand_name VARCHAR(100) UNIQUE NOT NULL
+        );
+
 
 CREATE TABLE AssetSpecifications (
             id INT AUTO_INCREMENT PRIMARY KEY,

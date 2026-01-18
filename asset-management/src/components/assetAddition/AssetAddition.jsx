@@ -45,14 +45,14 @@ const AssetAddition = () => {
       try {
         console.log('Fetching initial data...');
         // Fetch asset types
-        const typesResponse = await fetch(`${APP_CONFIG.apiBaseUrl}/asset-types`);
+        const typesResponse = await fetch(`${APP_CONFIG.apiBaseUrl}/assets/asset-types`);
         const typesData = await typesResponse.json();
         if (typesData.success) {
           setAssetTypes(typesData.data);
         }
 
         // Fetch all specifications
-        const specsResponse = await fetch(`${APP_CONFIG.apiBaseUrl}/asset-specifications`);
+        const specsResponse = await fetch(`${APP_CONFIG.apiBaseUrl}/assets/specifications`);
         const specsData = await specsResponse.json();
         if (specsData.success) {
           setAllSpecifications(specsData.data);

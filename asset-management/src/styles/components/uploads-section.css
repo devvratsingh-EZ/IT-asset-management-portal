@@ -8,12 +8,12 @@
 
 .uploads-section__dropzone {
   @apply p-6 text-center cursor-pointer transition-all rounded-xl;
-  border: 2px dashed rgba(51, 65, 85, 1);
+  border: 2px dashed var(--color-border);
 }
 
 .uploads-section__dropzone:hover {
   border-color: var(--color-border-hover);
-  background-color: rgba(30, 41, 59, 0.3);
+  background-color: #f8fafc;
 }
 
 .uploads-section__dropzone--has-file {
@@ -27,16 +27,16 @@
 .uploads-section__input { @apply hidden; }
 .uploads-section__preview { @apply space-y-3; }
 .uploads-section__preview-image { @apply max-h-40 mx-auto rounded-lg; }
-.uploads-section__preview-name { @apply text-sm; color: var(--color-primary-light); }
+.uploads-section__preview-name { @apply text-sm; color: var(--color-primary); }
 .uploads-section__file-list { @apply space-y-2 mt-3; }
 
 .uploads-section__file-item {
   @apply flex items-center justify-between px-3 py-2 rounded-lg;
-  background-color: rgba(30, 41, 59, 0.5);
+  background-color: #f1f5f9;
 }
 
 .uploads-section__file-info { @apply flex items-center gap-2 text-sm; color: var(--color-text-secondary); }
 .uploads-section__file-name { @apply truncate max-w-[200px]; }
 .uploads-section__file-remove { @apply transition-colors; color: var(--color-text-muted); }
-.uploads-section__file-remove:hover { color: #f87171; }
-.uploads-section__file-count { @apply text-xs; color: #34d399; }
+.uploads-section__file-remove:hover { color: #dc2626; }
+.uploads-section__file-count { @apply text-xs; color: #059669; }

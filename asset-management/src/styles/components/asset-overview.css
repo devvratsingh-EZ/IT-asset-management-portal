@@ -1,10 +1,13 @@
+/**
+ * Asset Overview Styles
+ */
 .asset-overview__grid {
   @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4;
 }
 
 .asset-overview__item {
   @apply p-4 rounded-xl;
-  background-color: rgba(15, 23, 42, 0.5);
+  background-color: #f8fafc;
   border: 1px solid var(--color-border);
 }
 
@@ -18,14 +21,14 @@
 }
 
 .asset-overview__value--cyan {
-  color: #22d3ee;
+  color: #0891b2;
 }
 .asset-overview__value--teal {
-  color: #2dd4bf;
+  color: #0d9488;
 }
 .asset-overview__value--emerald {
-  color: #34d399;
+  color: #059669;
 }
 .asset-overview__value--amber {
-  color: #fbbf24;
+  color: #d97706;
 }

@@ -3,9 +3,8 @@
  */
 .side-panel {
   @apply fixed left-0 top-0 h-full z-40 flex flex-col transition-all duration-300;
-  background-color: rgba(15, 23, 42, 0.95);
-  backdrop-filter: blur(12px);
-  border-right: 1px solid rgba(30, 41, 59, 1);
+  background-color: #112949;
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .side-panel--open { width: 280px; }
@@ -18,14 +17,14 @@
 
 .side-panel__mobile-toggle {
   @apply fixed top-4 left-4 z-50 p-2 rounded-lg md:hidden;
-  background-color: rgba(30, 41, 59, 0.8);
-  border: 1px solid rgba(51, 65, 85, 1);
-  color: var(--color-text-primary);
+  background-color: #1a3a5c;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #ffffff;
 }
 
 .side-panel__header {
   @apply flex items-center justify-between p-4;
-  border-bottom: 1px solid rgba(30, 41, 59, 1);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .side-panel__logo {
@@ -39,17 +38,17 @@
 
 .side-panel__logo-text {
   @apply font-bold text-lg;
-  color: var(--color-text-primary);
+  color: #ffffff;
 }
 
 .side-panel__toggle-btn {
   @apply p-2 rounded-lg transition-colors;
-  color: var(--color-text-muted);
+  color: rgba(255, 255, 255, 0.6);
 }
 
 .side-panel__toggle-btn:hover {
-  background-color: rgba(30, 41, 59, 0.5);
-  color: var(--color-text-primary);
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
 }
 
 .side-panel__nav {
@@ -58,17 +57,18 @@
 
 .side-panel__nav-item {
   @apply w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all relative;
-  color: var(--color-text-secondary);
+  color: rgba(255, 255, 255, 0.7);
 }
 
 .side-panel__nav-item:hover {
-  background-color: rgba(30, 41, 59, 0.5);
-  color: var(--color-text-primary);
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
 }
 
 .side-panel__nav-item--active {
-  background: linear-gradient(to right, rgba(6, 182, 212, 0.15), rgba(20, 184, 166, 0.15));
+  background: linear-gradient(to right, rgba(6, 182, 212, 0.3), rgba(20, 184, 166, 0.2));
   color: var(--color-primary-light);
+  border: 1px solid rgba(6, 182, 212, 0.3);
 }
 
 .side-panel__nav-icon {
@@ -76,7 +76,7 @@
 }
 
 .side-panel__nav-content {
-  @apply flex flex-col items-start;
+  @apply flex flex-col items-start text-left;
 }
 
 .side-panel__nav-label {
@@ -85,7 +85,7 @@
 
 .side-panel__nav-description {
   @apply text-xs;
-  color: var(--color-text-muted);
+  color: rgba(255, 255, 255, 0.5);
 }
 
 .side-panel__nav-indicator {
@@ -95,12 +95,12 @@
 
 .side-panel__footer {
   @apply p-4 text-center;
-  border-top: 1px solid rgba(30, 41, 59, 1);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .side-panel__footer-text {
   @apply text-xs;
-  color: var(--color-text-muted);
+  color: rgba(255, 255, 255, 0.5);
 }
 
 @media (max-width: 768px) {
