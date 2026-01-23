@@ -59,10 +59,19 @@ app = FastAPI(
 )
 
 # CORS middleware
+# IMPORTANT: When using credentials (cookies), cannot use wildcard '*'
+# Must specify exact origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=[
+        "http://localhost:3000",      # Frontend dev server (Vite)
+        "http://127.0.0.1:3000",      # Frontend dev server (127.0.0.1)
+        "http://localhost:8000",      # Backend serving frontend
+        "http://127.0.0.1:8000",      # Backend serving frontend (127.0.0.1)
+        "https://localhost",          # HTTPS production
+        "https://127.0.0.1",          # HTTPS production (127.0.0.1)
+    ],
+    allow_credentials=True,  # ← CRITICAL: Allow cookies to be sent
     allow_methods=["*"],
     allow_headers=["*"],
 )

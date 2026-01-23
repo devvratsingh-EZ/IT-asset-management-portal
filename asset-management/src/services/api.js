@@ -104,21 +104,27 @@ async function refreshAccessToken() {
   try {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       method,
-      credentials: 'include',
+      credentials: 'include',  // ← CRITICAL: Send cookies with request
       headers: { 'Content-Type': 'application/json' }
     });
     
+    console.log(`📍 [refreshAccessToken] Response status: ${response.status}`);
+    
     if (response.ok) {
       const data = await response.json();
+      console.log('📍 [refreshAccessToken] Got new token:', { access_token: data.access_token?.substring(0, 20) + '...' });
       tokenManager.setToken(data.access_token, data.expires_at);
-      logger.success(endpoint, method, 'Token refreshed successfully');
+      logger.success(endpoint, method, 'Token refreshed successfully', { user: data.username });
       return data.access_token;
     } else {
-      logger.auth(endpoint, method, 'fail', 'Token refresh rejected', { status: response.status });
+      const errorData = await response.json().catch(() => ({}));
+      console.log(`📍 [refreshAccessToken] Refresh failed with status ${response.status}:`, errorData);
+      logger.auth(endpoint, method, 'fail', 'Token refresh rejected', { status: response.status, detail: errorData.detail });
       return null;
     }
   } catch (error) {
-    logger.error(endpoint, method, 'Token refresh failed', error);
+    console.log('📍 [refreshAccessToken] Error during refresh:', error.message);
+    logger.error(endpoint, method, 'Token refresh failed', { error: error.message });
     return null;
   }
 }
@@ -231,16 +237,18 @@ export const authService = {
       
       const data = await response.json();
       
+      logger.log(endpoint, method, `Response received: ${response.status}`, { data });
+      
       if (response.ok && data.success) {
         tokenManager.setToken(data.token, data.expires_at);
-        logger.auth(endpoint, method, 'pass', `Login successful for user: ${username}`);
+        logger.auth(endpoint, method, 'pass', `Login successful for user: ${username}`, { token: data.token });
       } else {
-        logger.auth(endpoint, method, 'fail', `Login failed for user: ${username}`, data);
+        logger.auth(endpoint, method, 'fail', `Login failed for user: ${username}`, { status: response.status, data });
       }
       
       return { response, data };
     } catch (error) {
-      logger.error(endpoint, method, `Login error for user: ${username}`, error);
+      logger.error(endpoint, method, `Login error for user: ${username}`, { message: error.message, stack: error.stack });
       throw error;
     }
   },
@@ -264,23 +272,29 @@ export const authService = {
     const endpoint = '/auth/verify';
     const method = 'GET';
     
+    console.log('🔐 [verifyToken] Starting token verification');
+    
     // If we have an access token in memory, verify it
     if (accessToken) {
+      console.log('🔐 [verifyToken] Token found in memory - verifying');
       logger.log(endpoint, method, 'Token found in memory - verifying');
       
       try {
         const data = await fetchApi(endpoint, {}, method);
         if (data.valid) {
+          console.log('🔐 [verifyToken] ✅ Token in memory is valid');
           logger.auth(endpoint, method, 'pass', 'Token verified');
           return { valid: true, ...data };
         }
       } catch (error) {
+        console.log('🔐 [verifyToken] Token verification failed, attempting refresh:', error.message);
         logger.log(endpoint, method, 'Token verification failed, attempting refresh');
       }
     }
     
     // No token in memory, but refresh token cookie might exist
     // Attempt to refresh using the cookie
+    console.log('🔐 [verifyToken] No token in memory - attempting refresh from cookie');
     logger.log(endpoint, method, 'No token in memory - attempting refresh from cookie');
     
     try {
@@ -288,18 +302,23 @@ export const authService = {
       if (newToken) {
         // Decode to get user info
         const payload = decodeJWT(newToken);
-        logger.auth(endpoint, method, 'pass', 'Session restored via token refresh');
+        console.log('🔐 [verifyToken] ✅ Session restored via refresh:', { user: payload?.username });
+        logger.auth(endpoint, method, 'pass', 'Session restored via token refresh', { user: payload?.username });
         return { 
           valid: true, 
           token: newToken,
           username: payload?.username,
           full_name: payload?.full_name
         };
+      } else {
+        console.log('🔐 [verifyToken] ❌ Refresh token invalid or missing');
       }
     } catch (error) {
+      console.log('🔐 [verifyToken] ❌ Refresh failed:', error.message);
       logger.log(endpoint, method, 'Token refresh failed');
     }
     
+    console.log('🔐 [verifyToken] ❌ No valid session found');
     logger.auth(endpoint, method, 'fail', 'Session not found - user must login');
     return { valid: false };
   },

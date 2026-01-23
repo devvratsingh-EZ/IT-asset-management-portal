@@ -36,7 +36,7 @@ def set_refresh_cookie(response: Response, refresh_token: str):
     - Secure: Cookie only sent over HTTPS (prevents MITM attacks)
     - SameSite=Strict: Prevents CSRF attacks (cookie not sent to cross-site requests)
     - Max-Age: Cookie expires after 24 hours
-    - Path: Cookie only sent to /api/auth endpoints
+    - Path: Cookie sent to all /api/* endpoints
     
     Environment-based Security:
     - Development (DEBUG=True): secure=False (HTTP allowed for local testing)
@@ -51,7 +51,7 @@ def set_refresh_cookie(response: Response, refresh_token: str):
         secure=is_production,  # True in production (HTTPS only), False in development
         samesite="strict",  # Strict CSRF protection
         max_age=COOKIE_MAX_AGE,
-        path="/api/auth"
+        path="/api"  # ← Changed from "/api/auth" to "/api" so it covers all /api/* routes
     )
     
     if is_production:
@@ -64,7 +64,7 @@ def clear_refresh_cookie(response: Response):
     """Clear refresh token cookie."""
     response.delete_cookie(
         key=REFRESH_COOKIE_NAME,
-        path="/api/auth"
+        path="/api"  # ← Match the path used in set_refresh_cookie
     )
 
 
@@ -96,13 +96,18 @@ async def login(request: LoginRequest, response: Response, db: Session = Depends
 
 @router.post("/refresh", response_model=RefreshResponse)
 async def refresh_token(
+    request: Request,
     response: Response,
     db: Session = Depends(get_db),
     refresh_token: Optional[str] = Cookie(None, alias=REFRESH_COOKIE_NAME)
 ):
     """Refresh access token using refresh token from cookie."""
+    # Debug: Log all cookies received
+    logger.info(f"[auth.py:95] REFRESH REQUEST - Cookies: {request.cookies}")
+    logger.info(f"[auth.py:96] REFRESH REQUEST - Cookie param: {refresh_token}")
+    
     if not refresh_token:
-        logger.warning("REFRESH: No refresh token cookie present")
+        logger.warning(f"[auth.py:98] REFRESH: No refresh token cookie present. Cookies received: {dict(request.cookies)}")
         raise HTTPException(status_code=401, detail="Refresh token missing")
     
     auth_service = AuthService(db)

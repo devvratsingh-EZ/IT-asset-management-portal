@@ -14,16 +14,21 @@ const LoginScreen = ({ onLogin }) => {
     setError('');
 
     try {
+      console.log('🔐 [LoginScreen] Starting login with:', { username });
       const { response, data } = await authService.login(username, password);
+      
+      console.log('🔐 [LoginScreen] Login response:', { response, data, ok: response.ok, success: data.success });
 
       if (response.ok && data.success) {
+        console.log('✅ [LoginScreen] Login successful, setting token and calling onLogin');
         onLogin(data.full_name || data.username, data.token, data.expires_at);
       } else {
+        console.log('❌ [LoginScreen] Login response not ok or not successful:', { status: response.status, success: data.success });
         setError(data.detail || 'Invalid username or password');
         setIsLoading(false);
       }
     } catch (err) {
-      console.error('Login error:', err);
+      console.error('❌ [LoginScreen] Login caught error:', err);
       setError('Unable to connect to server. Please try again.');
       setIsLoading(false);
     }
