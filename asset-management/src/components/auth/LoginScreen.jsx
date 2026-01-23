@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Icons } from '../common/Icons';
-import { APP_CONFIG } from '../../data/constants';
+import { authService } from '../../services/api';
 
 const LoginScreen = ({ onLogin }) => {
   const [username, setUsername] = useState('');
@@ -14,13 +14,7 @@ const LoginScreen = ({ onLogin }) => {
     setError('');
 
     try {
-      const response = await fetch(`${APP_CONFIG.apiBaseUrl}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
-      });
-
-      const data = await response.json();
+      const { response, data } = await authService.login(username, password);
 
       if (response.ok && data.success) {
         onLogin(data.full_name || data.username, data.token, data.expires_at);
@@ -29,7 +23,7 @@ const LoginScreen = ({ onLogin }) => {
         setIsLoading(false);
       }
     } catch (err) {
-      console.error('Login API error:', err);
+      console.error('Login error:', err);
       setError('Unable to connect to server. Please try again.');
       setIsLoading(false);
     }

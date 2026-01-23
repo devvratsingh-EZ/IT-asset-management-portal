@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Icons, ExpandableSection, DatePicker, DataPreviewModal } from '../common';
-import { APP_CONFIG } from '../../data/constants';
+import { assetService, employeeService } from '../../services/api';
 import SuccessNotification from '../dashboard/SuccessNotification';
 
 const AssetAddition = () => {
@@ -45,22 +45,19 @@ const AssetAddition = () => {
       try {
         console.log('Fetching initial data...');
         // Fetch asset types
-        const typesResponse = await fetch(`${APP_CONFIG.apiBaseUrl}/assets/asset-types`);
-        const typesData = await typesResponse.json();
+        const typesData = await assetService.getAssetTypes();
         if (typesData.success) {
           setAssetTypes(typesData.data);
         }
 
         // Fetch all specifications
-        const specsResponse = await fetch(`${APP_CONFIG.apiBaseUrl}/assets/specifications`);
-        const specsData = await specsResponse.json();
+        const specsData = await assetService.getSpecifications();
         if (specsData.success) {
           setAllSpecifications(specsData.data);
         }
 
         // Fetch employees
-        const employeesResponse = await fetch(`${APP_CONFIG.apiBaseUrl}/employees`);
-        const employeesData = await employeesResponse.json();
+        const employeesData = await employeeService.getEmployees();
         if (employeesData.success) {
           setEmployees(employeesData.data);
         }
@@ -195,16 +192,8 @@ const AssetAddition = () => {
     
     try {
       const payload = preparePayload();
-      console.log('Submitting asset payload:', payload);  // ADD THIS
-      console.log('API URL:', `${APP_CONFIG.apiBaseUrl}/assets`);  // ADD THIS
-      const response = await fetch(`${APP_CONFIG.apiBaseUrl}/assets`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      console.log('Response status:', response.status);  // ADD THIS
-      const result = await response.json();
-      console.log('Response data:', result);
+      console.log('Submitting asset payload:', payload);
+      const result = await assetService.createAsset(payload);
       
       if (result.success) {
         setSubmitSummary({
@@ -221,7 +210,6 @@ const AssetAddition = () => {
       } else {
         alert(`Failed to create asset: ${result.detail || result.message || 'Unknown error'}`);
         console.error('Failed to create asset:', result);
-        console.error('Failed to create asset:', result.message);
       }
     } catch (error) {
       console.error('Error creating asset:', error);

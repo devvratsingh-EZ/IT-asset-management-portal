@@ -17,3 +17,12 @@ class TokenValidationResponse(BaseModel):
     username: Optional[str] = None
     full_name: Optional[str] = None
     message: Optional[str] = None
+
+# ADD at end of file:
+
+class RefreshResponse(BaseModel):
+    success: bool
+    access_token: str
+    expires_at: str
+    username: Optional[str] = None
+    full_name: Optional[str] = None

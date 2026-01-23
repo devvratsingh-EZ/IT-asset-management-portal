@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Icons } from '../common/Icons';
-import { APP_CONFIG } from '../../data/constants';
+import { assetService } from '../../services/api';
 
 /**
  * Confirmation Modal Component
@@ -81,17 +81,8 @@ const DeleteAsset = () => {
   const fetchAssets = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('authToken');
-      const response = await fetch(`${APP_CONFIG.apiBaseUrl}/assets`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const result = await assetService.getAssets();
 
-      if (!response.ok) throw new Error('Failed to fetch assets');
-
-      const result = await response.json();
       if (result.success) {
         // Convert object to array
         const assetArray = Object.values(result.data);
@@ -135,21 +126,10 @@ const DeleteAsset = () => {
   const handleConfirmDelete = async () => {
   try {
     setIsDeleting(true);
-    const token = localStorage.getItem('authToken');
+    const response = await assetService.bulkDeleteAssets(selectedIds);
     
-    const response = await fetch(`${APP_CONFIG.apiBaseUrl}/assets/bulk-delete`, {
-      method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ assetIds: selectedIds })
-    });
-
-    const result = await response.json();
-    
-    if (!response.ok || !result.success) {
-      throw new Error(result.detail || result.message || 'Deletion failed');
+    if (!response || !response.success) {
+      throw new Error(response?.detail || response?.message || 'Deletion failed');
     }
 
     const deletedIds = [...selectedIds];

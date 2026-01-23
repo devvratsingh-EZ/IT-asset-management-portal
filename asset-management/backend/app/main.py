@@ -10,11 +10,12 @@ from app.config import settings
 from app.api.router import api_router
 from app.api.routes.frontend import router as frontend_router
 from app.db.init_db import init_database
+from app.db.session import db_manager
 
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    format='%(asctime)s - %(name)s - %(levelname)s - [%(filename)s:%(lineno)d] - %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S'
 )
 logger = logging.getLogger('main')
@@ -34,6 +35,7 @@ async def lifespan(app: FastAPI):
     print("\nInitializing Database...")
     if init_database():
         print("Database ready!")
+        print(f"Connection pool: pool_size=5, max_overflow=10")
     else:
         print("Database initialization failed - running in offline mode")
     
@@ -42,6 +44,10 @@ async def lifespan(app: FastAPI):
     print("=" * 50 + "\n")
     
     yield
+    
+    # Cleanup: dispose connection pool on shutdown
+    print("Disposing database connection pool...")
+    db_manager.dispose()
     print("Server shutting down...")
 
 

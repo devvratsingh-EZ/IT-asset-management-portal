@@ -109,3 +109,21 @@ CREATE OR REPLACE VIEW SummaryData AS
                 a.Brand,
                 a.Model
             ORDER BY a.AssetType;
+
+
+CREATE TABLE BrandData(
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            brand_name VARCHAR(100) UNIQUE NOT NULL
+        );
+
+CREATE TABLE RepairStatusTracker (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            AssetId VARCHAR(100) NOT NULL,
+            RepairStartTimestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            TempAssetId VARCHAR(100) NOT NULL,
+            RepairEndTimestamp TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+            RepairDetails TEXT,
+            FOREIGN KEY (AssetId) REFERENCES AssetData(AssetId) ON DELETE CASCADE,
+            FOREIGN KEY (TempAssetId) REFERENCES AssetData(AssetId) ON DELETE CASCADE,
+            CONSTRAINT chk_assetid_tempid_not_same CHECK (AssetId <> TempAssetId)
+        );

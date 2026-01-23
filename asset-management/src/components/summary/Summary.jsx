@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Icons } from '../common/Icons';
-import { APP_CONFIG } from '../../data/constants';
+import { summaryService } from '../../services/api';
 
 /**
  * Filter Dropdown Component with checkboxes
@@ -113,17 +113,8 @@ const Summary = () => {
   const fetchSummaryData = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('authToken');
-      const response = await fetch(`${APP_CONFIG.apiBaseUrl}/summary`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const result = await summaryService.getSummaryData();
 
-      if (!response.ok) throw new Error('Failed to fetch summary data');
-
-      const result = await response.json();
       if (result.success) {
         setSummaryData(result.data);
       } else {
