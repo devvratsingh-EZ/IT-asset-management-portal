@@ -1,52 +1,51 @@
-"""Employee repository."""
+"""Employee repository using SQLAlchemy ORM."""
 import logging
+from typing import Optional, Dict
+
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from app.db.repositories.base import BaseRepository
+from app.db.models import PeopleData
 
 logger = logging.getLogger('db.employee_repository')
 
 
-class EmployeeRepository(BaseRepository):
-    """Repository for employee operations."""
+class EmployeeRepository(BaseRepository[PeopleData]):
+    """Repository for employee operations using SQLAlchemy ORM."""
     
-    def get_all(self) -> dict:
+    def __init__(self, session: Session):
+        super().__init__(PeopleData, session)
+    
+    def get_all(self) -> Dict[str, dict]:
         """Get all employees."""
         logger.info("FETCH: Getting all employees")
         
-        rows = self._execute_query("""
-            SELECT NameId, Name, Department, Email
-            FROM PeopleData
-            ORDER BY Name
-        """)
+        stmt = select(PeopleData).order_by(PeopleData.Name)
+        employees = self.session.scalars(stmt).all()
         
-        if not rows:
-            return {}
-        
-        result = {}
-        for row in rows:
-            result[row['NameId']] = {
-                'name': row['Name'],
-                'department': row['Department'],
-                'email': row['Email']
+        result = {
+            emp.NameId: {
+                'name': emp.Name,
+                'department': emp.Department,
+                'email': emp.Email
             }
+            for emp in employees
+        }
         
         logger.info(f"FETCH: Retrieved {len(result)} employees")
         return result
     
-    def get_by_id(self, employee_id: str) -> dict:
+    def get_by_id(self, employee_id: str) -> Optional[dict]:
         """Get a single employee by ID."""
         logger.info(f"FETCH: Getting employee '{employee_id}'")
         
-        row = self._execute_query("""
-            SELECT NameId, Name, Department, Email
-            FROM PeopleData
-            WHERE NameId = %s
-        """, (employee_id,), fetch_one=True)
+        employee = self.session.get(PeopleData, employee_id)
         
-        if row:
+        if employee:
             return {
-                'name': row['Name'],
-                'department': row['Department'],
-                'email': row['Email']
+                'name': employee.Name,
+                'department': employee.Department,
+                'email': employee.Email
             }
         return None

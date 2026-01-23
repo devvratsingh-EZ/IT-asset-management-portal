@@ -7,6 +7,7 @@ import { SidePanel } from './components/layout';
 import { APP_CONFIG } from './data/constants';
 import { Summary } from './components/summary';
 import { DeleteAsset } from './components/deleteAsset';
+import { authService, tokenManager } from './services/api';
 
 /**
  * Main Layout Component with Side Panel
@@ -89,79 +90,55 @@ function AssetManagementApp() {
   const [currentUser, setCurrentUser] = useState('');
   const [isLoading, setIsLoading] = useState(true);
 
-  // Verify token on app load
+  // Verify token on app load and restore session from refresh token if available
   useEffect(() => {
-    const verifyToken = async () => {
-      const token = localStorage.getItem('authToken');
-      const expiresAt = localStorage.getItem('tokenExpiry');
-
-      if (!token || !expiresAt) {
-        setIsLoading(false);
-        return;
-      }
-
-      // Check if token expired locally first
-      if (new Date(expiresAt) < new Date()) {
-        console.log('Token expired locally');
-        handleLogout();
-        setIsLoading(false);
-        return;
-      }
-
-      // Verify with backend
+    const restoreSession = async () => {
       try {
-        const response = await fetch(`${APP_CONFIG.apiBaseUrl}/auth/verify`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const data = await response.json();
-
-        if (data.valid) {
+        // Attempt to verify/restore token
+        const result = await authService.verifyToken();
+        
+        if (result && result.valid) {
           setIsAuthenticated(true);
-          setCurrentUser(data.full_name || data.username);
+          setCurrentUser(result.full_name || result.username || 'User');
+          console.log('%c[SESSION] Session restored on page load', 'color: #0ea5e9;', result);
         } else {
+          // Session expired or refresh token not available
           handleLogout();
+          console.log('%c[SESSION] No valid session found - user needs to login', 'color: orange;');
         }
       } catch (error) {
-        console.error('Token verification failed:', error);
-        // Keep logged in if backend is unreachable but token not expired
-        const storedUser = localStorage.getItem('currentUser');
-        if (storedUser) {
-          setIsAuthenticated(true);
-          setCurrentUser(storedUser);
-        }
+        console.error('%c[SESSION] Session restoration failed', 'color: red;', error);
+        handleLogout();
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
 
-    verifyToken();
+    restoreSession();
 
-    // Set up expiry checker (every minute)
-    const expiryChecker = setInterval(() => {
-      const expiresAt = localStorage.getItem('tokenExpiry');
-      if (expiresAt && new Date(expiresAt) < new Date()) {
-        console.log('Token expired - logging out');
-        handleLogout();
-        window.location.href = '/login';
-      }
-    }, 60000);
+    // Listen for auth:logout event from api.js (when refresh token expires)
+    const handleForceLogout = () => {
+      handleLogout();
+      window.location.href = '/login';
+    };
+    window.addEventListener('auth:logout', handleForceLogout);
 
-    return () => clearInterval(expiryChecker);
+    return () => {
+      window.removeEventListener('auth:logout', handleForceLogout);
+    };
   }, []);
 
   const handleLogin = (username, token, expiresAt) => {
+    tokenManager.setToken(token, expiresAt);
     setCurrentUser(username);
     setIsAuthenticated(true);
-    localStorage.setItem('authToken', token);
-    localStorage.setItem('currentUser', username);
-    localStorage.setItem('tokenExpiry', expiresAt);
+    // No localStorage for tokens anymore
   };
 
   const handleLogout = () => {
+    tokenManager.clearToken();
     setIsAuthenticated(false);
     setCurrentUser('');
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('currentUser');
-    localStorage.removeItem('tokenExpiry');
   };
 
   if (isLoading) {

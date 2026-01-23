@@ -1,206 +1,187 @@
-"""Asset repository."""
+"""Asset repository using SQLAlchemy ORM."""
 import logging
 from datetime import datetime
-from mysql.connector import Error
+from typing import Optional, Dict, List
+
+from sqlalchemy import select, update, delete
+from sqlalchemy.orm import Session, joinedload
 
 from app.db.repositories.base import BaseRepository
-from app.db.connection import get_connection
+from app.db.models import (
+    AssetData, AssetType, AssetSpecification, SpecData,
+    AssignmentHistory, PeopleData, AssetIdCounter
+)
 
 logger = logging.getLogger('db.asset_repository')
 
 
-class AssetRepository(BaseRepository):
-    """Repository for asset operations."""
+class AssetRepository(BaseRepository[AssetData]):
+    """Repository for asset operations using SQLAlchemy ORM."""
     
-    def get_types(self) -> list:
+    def __init__(self, session: Session):
+        super().__init__(AssetData, session)
+    
+    def get_types(self) -> List[dict]:
         """Get all asset types."""
         logger.info("FETCH: Getting all asset types")
-        return self._execute_query("SELECT id, type_name FROM AssetTypes ORDER BY type_name") or []
+        stmt = select(AssetType).order_by(AssetType.type_name)
+        types = self.session.scalars(stmt).all()
+        return [{"id": t.id, "type_name": t.type_name} for t in types]
     
-    def get_all_specifications(self) -> dict:
+    def get_all_specifications(self) -> Dict[str, dict]:
         """Get all specifications grouped by asset type."""
         logger.info("FETCH: Getting all specifications")
         
-        rows = self._execute_query("""
-            SELECT t.type_name, s.field_key, s.field_label, s.placeholder
-            FROM AssetSpecifications s
-            JOIN AssetTypes t ON s.asset_type_id = t.id
-            ORDER BY t.type_name, s.id
-        """)
-        
-        if not rows:
-            return {}
+        stmt = (
+            select(AssetSpecification)
+            .join(AssetType)
+            .options(joinedload(AssetSpecification.asset_type))
+            .order_by(AssetType.type_name, AssetSpecification.id)
+        )
+        specs = self.session.scalars(stmt).all()
         
         result = {}
-        for row in rows:
-            type_name = row['type_name']
+        for spec in specs:
+            type_name = spec.asset_type.type_name
             if type_name not in result:
                 result[type_name] = {'fields': []}
             result[type_name]['fields'].append({
-                'key': row['field_key'],
-                'label': row['field_label'],
-                'placeholder': row['placeholder']
+                'key': spec.field_key,
+                'label': spec.field_label,
+                'placeholder': spec.placeholder
             })
         
         return result
     
-    def get_specifications_for_type(self, type_name: str) -> list:
+    def get_specifications_for_type(self, type_name: str) -> List[dict]:
         """Get specification fields for a given asset type."""
         logger.info(f"FETCH: Getting specifications for type '{type_name}'")
         
-        return self._execute_query("""
-            SELECT s.field_key, s.field_label, s.placeholder
-            FROM AssetSpecifications s
-            JOIN AssetTypes t ON s.asset_type_id = t.id
-            WHERE t.type_name = %s
-            ORDER BY s.id
-        """, (type_name,)) or []
-    
-    def get_all(self) -> dict:
-        """Get all assets."""
-        logger.info("FETCH: Getting all assets")
-        connection = get_connection()
-        if not connection:
-            return {}
+        stmt = (
+            select(AssetSpecification)
+            .join(AssetType)
+            .where(AssetType.type_name == type_name)
+            .order_by(AssetSpecification.id)
+        )
+        specs = self.session.scalars(stmt).all()
         
-        try:
-            cursor = connection.cursor(dictionary=True)
-            cursor.execute("""
-                SELECT AssetId, SerialNo, AssetType, Brand, Model,
-                       DateOfPurchase, ProductCost, GST, WarrantyExpiry,
-                       AssignedTo, RepairStatus
-                FROM AssetData ORDER BY AssetId
-            """)
-            assets = cursor.fetchall()
-            
-            result = {}
-            for asset in assets:
-                asset_id = asset['AssetId']
-                
-                cursor.execute("""
-                    SELECT SpecFieldName, SpecFieldValue
-                    FROM SpecData WHERE AssetId = %s
-                """, (asset_id,))
-                specs = cursor.fetchall()
-                
-                specifications = {spec['SpecFieldName']: spec['SpecFieldValue'] for spec in specs}
-                specifications['brand'] = asset['Brand']
-                specifications['model'] = asset['Model']
-                
-                result[asset_id] = {
-                    'assetId': asset_id,
-                    'serialNumber': asset['SerialNo'],
-                    'assetType': asset['AssetType'],
-                    'specifications': specifications,
-                    'assignedTo': asset['AssignedTo'],
-                    'repairStatus': bool(asset['RepairStatus']),
-                    'warrantyExpiry': asset['WarrantyExpiry']
-                }
-            
-            logger.info(f"FETCH: Retrieved {len(result)} assets")
-            return result
-            
-        except Error as e:
-            logger.error(f"FETCH: Error getting assets: {e}")
-            return {}
-        finally:
-            if connection.is_connected():
-                cursor.close()
-                connection.close()
-    
-    def get_by_id(self, asset_id: str) -> dict:
-        """Get a single asset by ID."""
-        logger.info(f"FETCH: Getting asset '{asset_id}'")
-        connection = get_connection()
-        if not connection:
-            return None
-        
-        try:
-            cursor = connection.cursor(dictionary=True)
-            cursor.execute("""
-                SELECT AssetId, SerialNo, AssetType, Brand, Model,
-                       DateOfPurchase, ProductCost, GST, WarrantyExpiry,
-                       AssignedTo, RepairStatus
-                FROM AssetData WHERE AssetId = %s
-            """, (asset_id,))
-            asset = cursor.fetchone()
-            
-            if not asset:
-                return None
-            
-            cursor.execute("""
-                SELECT SpecFieldName, SpecFieldValue
-                FROM SpecData WHERE AssetId = %s
-            """, (asset_id,))
-            specs = cursor.fetchall()
-            
-            specifications = {spec['SpecFieldName']: spec['SpecFieldValue'] for spec in specs}
-            specifications['brand'] = asset['Brand']
-            specifications['model'] = asset['Model']
-            
-            return {
-                'assetId': asset['AssetId'],
-                'serialNumber': asset['SerialNo'],
-                'assetType': asset['AssetType'],
-                'specifications': specifications,
-                'assignedTo': asset['AssignedTo'],
-                'repairStatus': bool(asset['RepairStatus']),
-                'warrantyExpiry': asset['WarrantyExpiry']
+        return [
+            {
+                'field_key': s.field_key,
+                'field_label': s.field_label,
+                'placeholder': s.placeholder
             }
-            
-        except Error as e:
-            logger.error(f"FETCH: Error getting asset '{asset_id}': {e}")
-            return None
-        finally:
-            if connection.is_connected():
-                cursor.close()
-                connection.close()
+            for s in specs
+        ]
     
-    def get_assignment_history(self, asset_id: str) -> list:
+    def get_all(self) -> Dict[str, dict]:
+        """Get all assets with their specifications."""
+        logger.info("FETCH: Getting all assets")
+        
+        stmt = (
+            select(AssetData)
+            .options(joinedload(AssetData.spec_data))
+            .order_by(AssetData.AssetId)
+        )
+        assets = self.session.scalars(stmt).unique().all()
+        
+        result = {}
+        for asset in assets:
+            specifications = {
+                spec.SpecFieldName: spec.SpecFieldValue 
+                for spec in asset.spec_data
+            }
+            specifications['brand'] = asset.Brand
+            specifications['model'] = asset.Model
+            
+            result[asset.AssetId] = {
+                'assetId': asset.AssetId,
+                'serialNumber': asset.SerialNo,
+                'assetType': asset.AssetType,
+                'specifications': specifications,
+                'assignedTo': asset.AssignedTo,
+                'repairStatus': bool(asset.RepairStatus),
+                'warrantyExpiry': asset.WarrantyExpiry
+            }
+        
+        logger.info(f"FETCH: Retrieved {len(result)} assets")
+        return result
+    
+    def get_by_id(self, asset_id: str) -> Optional[dict]:
+        """Get a single asset by ID with specifications."""
+        logger.info(f"FETCH: Getting asset '{asset_id}'")
+        
+        stmt = (
+            select(AssetData)
+            .options(joinedload(AssetData.spec_data))
+            .where(AssetData.AssetId == asset_id)
+        )
+        asset = self.session.scalars(stmt).first()
+        
+        if not asset:
+            return None
+        
+        specifications = {
+            spec.SpecFieldName: spec.SpecFieldValue 
+            for spec in asset.spec_data
+        }
+        specifications['brand'] = asset.Brand
+        specifications['model'] = asset.Model
+        
+        return {
+            'assetId': asset.AssetId,
+            'serialNumber': asset.SerialNo,
+            'assetType': asset.AssetType,
+            'specifications': specifications,
+            'assignedTo': asset.AssignedTo,
+            'repairStatus': bool(asset.RepairStatus),
+            'warrantyExpiry': asset.WarrantyExpiry
+        }
+    
+    def get_assignment_history(self, asset_id: str) -> List[dict]:
         """Get assignment history for an asset."""
         logger.info(f"FETCH: Getting assignment history for '{asset_id}'")
         
-        rows = self._execute_query("""
-            SELECT EmployeeId, EmployeeName, AssignedOn, ReturnedOn, IsActive
-            FROM AssignmentHistory
-            WHERE AssetId = %s
-            ORDER BY AssignedOn DESC
-        """, (asset_id,))
+        stmt = (
+            select(AssignmentHistory)
+            .where(AssignmentHistory.AssetId == asset_id)
+            .order_by(AssignmentHistory.AssignedOn.desc())
+        )
+        history = self.session.scalars(stmt).all()
         
-        if not rows:
-            return []
-        
-        return [{
-            'employeeId': row['EmployeeId'],
-            'employeeName': row['EmployeeName'],
-            'assignedOn': row['AssignedOn'].strftime('%Y-%m-%d') if row['AssignedOn'] else None,
-            'returnedOn': 'Active' if row['IsActive'] else (row['ReturnedOn'].strftime('%Y-%m-%d') if row['ReturnedOn'] else None)
-        } for row in rows]
+        return [
+            {
+                'employeeId': h.EmployeeId,
+                'employeeName': h.EmployeeName,
+                'assignedOn': h.AssignedOn.strftime('%Y-%m-%d') if h.AssignedOn else None,
+                'returnedOn': 'Active' if h.IsActive else (
+                    h.ReturnedOn.strftime('%Y-%m-%d') if h.ReturnedOn else None
+                )
+            }
+            for h in history
+        ]
     
-    def get_all_assignment_history(self) -> dict:
+    def get_all_assignment_history(self) -> Dict[str, List[dict]]:
         """Get all assignment history grouped by asset ID."""
         logger.info("FETCH: Getting all assignment history")
         
-        rows = self._execute_query("""
-            SELECT AssetId, EmployeeId, EmployeeName, AssignedOn, ReturnedOn, IsActive
-            FROM AssignmentHistory
-            ORDER BY AssetId, AssignedOn DESC
-        """)
-        
-        if not rows:
-            return {}
+        stmt = (
+            select(AssignmentHistory)
+            .order_by(AssignmentHistory.AssetId, AssignmentHistory.AssignedOn.desc())
+        )
+        history = self.session.scalars(stmt).all()
         
         result = {}
-        for row in rows:
-            asset_id = row['AssetId']
-            if asset_id not in result:
-                result[asset_id] = []
-            
-            result[asset_id].append({
-                'employeeId': row['EmployeeId'],
-                'employeeName': row['EmployeeName'],
-                'assignedOn': row['AssignedOn'].strftime('%Y-%m-%d') if row['AssignedOn'] else None,
-                'returnedOn': 'Active' if row['IsActive'] else (row['ReturnedOn'].strftime('%Y-%m-%d') if row['ReturnedOn'] else None)
+        for h in history:
+            if h.AssetId not in result:
+                result[h.AssetId] = []
+            result[h.AssetId].append({
+                'employeeId': h.EmployeeId,
+                'employeeName': h.EmployeeName,
+                'assignedOn': h.AssignedOn.strftime('%Y-%m-%d') if h.AssignedOn else None,
+                'returnedOn': 'Active' if h.IsActive else (
+                    h.ReturnedOn.strftime('%Y-%m-%d') if h.ReturnedOn else None
+                )
             })
         
         return result
@@ -208,18 +189,15 @@ class AssetRepository(BaseRepository):
     def create(self, asset_data: dict, specifications: dict) -> dict:
         """Create a new asset with specifications."""
         logger.info(f"CREATE: Starting asset creation for serial '{asset_data.get('serialNumber')}'")
-        connection = get_connection()
-        if not connection:
-            raise Exception("Database connection failed")
         
         try:
-            cursor = connection.cursor(dictionary=True)
-            connection.start_transaction()
-            
             # Generate Asset ID
-            cursor.execute("UPDATE AssetIdCounter SET current_value = current_value + 1 WHERE id = 1")
-            cursor.execute("SELECT current_value FROM AssetIdCounter WHERE id = 1")
-            asset_id = f"AST_{cursor.fetchone()['current_value']}"
+            counter = self.session.get(AssetIdCounter, 1)
+            if not counter:
+                counter = AssetIdCounter(id=1, current_value=1000)
+                self.session.add(counter)
+            counter.current_value += 1
+            asset_id = f"AST_{counter.current_value}"
             
             logger.info(f"CREATE: Generated Asset ID '{asset_id}'")
             
@@ -228,154 +206,155 @@ class AssetRepository(BaseRepository):
             warranty_expiry = asset_data.get('warrantyExpiry')
             
             if isinstance(purchase_date, str) and purchase_date:
-                purchase_date = datetime.fromisoformat(purchase_date.replace('Z', '+00:00')).date()
+                purchase_date = datetime.fromisoformat(
+                    purchase_date.replace('Z', '+00:00')
+                ).date()
             if isinstance(warranty_expiry, str) and warranty_expiry:
-                warranty_expiry = datetime.fromisoformat(warranty_expiry.replace('Z', '+00:00')).date()
+                warranty_expiry = datetime.fromisoformat(
+                    warranty_expiry.replace('Z', '+00:00')
+                ).date()
             
             assigned_to = asset_data.get('assignedTo') or None
             
-            # Insert asset
-            cursor.execute("""
-                INSERT INTO AssetData (
-                    AssetId, SerialNo, AssetType, Brand, Model,
-                    DateOfPurchase, ProductCost, GST, WarrantyExpiry,
-                    AssignedTo, RepairStatus,
-                    AssetImagePath, PurchaseReceiptsPath, WarrantyCardPath
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            """, (
-                asset_id, asset_data.get('serialNumber'), asset_data.get('assetType'),
-                asset_data.get('brand'), asset_data.get('model'), purchase_date,
-                asset_data.get('purchaseCost', 0), asset_data.get('gstPaid', 0),
-                warranty_expiry, assigned_to, asset_data.get('repairStatus', False),
-                "s3://dummy-bucket/assets/images/sample.jpg",
-                "s3://dummy-bucket/assets/receipts/sample.pdf",
-                "s3://dummy-bucket/assets/warranty/sample.pdf"
-            ))
+            # Create asset
+            asset = AssetData(
+                AssetId=asset_id,
+                SerialNo=asset_data.get('serialNumber'),
+                AssetType=asset_data.get('assetType'),
+                Brand=asset_data.get('brand'),
+                Model=asset_data.get('model'),
+                DateOfPurchase=purchase_date,
+                ProductCost=asset_data.get('purchaseCost', 0),
+                GST=asset_data.get('gstPaid', 0),
+                WarrantyExpiry=warranty_expiry,
+                AssignedTo=assigned_to,
+                RepairStatus=asset_data.get('repairStatus', False),
+                AssetImagePath="s3://dummy-bucket/assets/images/sample.jpg",
+                PurchaseReceiptsPath="s3://dummy-bucket/assets/receipts/sample.pdf",
+                WarrantyCardPath="s3://dummy-bucket/assets/warranty/sample.pdf"
+            )
+            self.session.add(asset)
             
             # Get field mapping
-            cursor.execute("""
-                SELECT s.field_key, s.field_label
-                FROM AssetSpecifications s
-                JOIN AssetTypes t ON s.asset_type_id = t.id
-                WHERE t.type_name = %s
-            """, (asset_data.get('assetType'),))
-            field_mapping = {row['field_key']: row['field_label'] for row in cursor.fetchall()}
+            stmt = (
+                select(AssetSpecification)
+                .join(AssetType)
+                .where(AssetType.type_name == asset_data.get('assetType'))
+            )
+            spec_fields = self.session.scalars(stmt).all()
+            field_mapping = {s.field_key: s.field_label for s in spec_fields}
             
             # Insert specifications
             for field_key, field_value in specifications.items():
                 if field_value:
-                    cursor.execute("""
-                        INSERT INTO SpecData (AssetId, AssetTypeName, SpecFieldName, SpecFieldValue)
-                        VALUES (%s, %s, %s, %s)
-                    """, (asset_id, asset_data.get('assetType'), field_mapping.get(field_key, field_key), field_value))
+                    spec = SpecData(
+                        AssetId=asset_id,
+                        AssetTypeName=asset_data.get('assetType'),
+                        SpecFieldName=field_mapping.get(field_key, field_key),
+                        SpecFieldValue=field_value
+                    )
+                    self.session.add(spec)
             
             # Create assignment history if assigned
             if assigned_to:
-                cursor.execute("SELECT Name FROM PeopleData WHERE NameId = %s", (assigned_to,))
-                emp_result = cursor.fetchone()
-                emp_name = emp_result['Name'] if emp_result else assigned_to
+                employee = self.session.get(PeopleData, assigned_to)
+                emp_name = employee.Name if employee else assigned_to
                 
-                cursor.execute("""
-                    INSERT INTO AssignmentHistory (AssetId, EmployeeId, EmployeeName, AssignedOn, IsActive)
-                    VALUES (%s, %s, %s, %s, TRUE)
-                """, (asset_id, assigned_to, emp_name, datetime.now().date()))
+                history = AssignmentHistory(
+                    AssetId=asset_id,
+                    EmployeeId=assigned_to,
+                    EmployeeName=emp_name,
+                    AssignedOn=datetime.now().date(),
+                    IsActive=True
+                )
+                self.session.add(history)
             
-            connection.commit()
+            self.session.commit()
             logger.info(f"CREATE: Successfully created asset '{asset_id}'")
             
-            return {'success': True, 'assetId': asset_id, 'message': f'Asset {asset_id} created successfully'}
+            return {
+                'success': True,
+                'assetId': asset_id,
+                'message': f'Asset {asset_id} created successfully'
+            }
             
-        except Error as e:
-            connection.rollback()
+        except Exception as e:
+            self.session.rollback()
             logger.error(f"CREATE: Error - {e}")
             raise
-        finally:
-            if connection.is_connected():
-                cursor.close()
-                connection.close()
     
-    def update_assignment(self, asset_id: str, new_employee_id: str, repair_status: bool) -> dict:
+    def update_assignment(
+        self, asset_id: str, new_employee_id: str, repair_status: bool
+    ) -> dict:
         """Update asset assignment and repair status."""
         logger.info(f"UPDATE: Updating assignment for '{asset_id}'")
-        connection = get_connection()
-        if not connection:
-            raise Exception("Database connection failed")
         
         try:
-            cursor = connection.cursor(dictionary=True)
-            connection.start_transaction()
-            
-            cursor.execute("SELECT AssignedTo FROM AssetData WHERE AssetId = %s", (asset_id,))
-            current = cursor.fetchone()
-            
-            if not current:
+            asset = self.session.get(AssetData, asset_id)
+            if not asset:
                 raise Exception(f"Asset {asset_id} not found")
             
-            old_employee_id = current['AssignedTo']
+            old_employee_id = asset.AssignedTo
             
             if old_employee_id != new_employee_id:
+                # Close old assignment
                 if old_employee_id:
-                    cursor.execute("""
-                        UPDATE AssignmentHistory 
-                        SET ReturnedOn = %s, IsActive = FALSE
-                        WHERE AssetId = %s AND EmployeeId = %s AND IsActive = TRUE
-                    """, (datetime.now().date(), asset_id, old_employee_id))
+                    stmt = (
+                        update(AssignmentHistory)
+                        .where(AssignmentHistory.AssetId == asset_id)
+                        .where(AssignmentHistory.EmployeeId == old_employee_id)
+                        .where(AssignmentHistory.IsActive == True)
+                        .values(ReturnedOn=datetime.now().date(), IsActive=False)
+                    )
+                    self.session.execute(stmt)
                 
+                # Create new assignment
                 if new_employee_id:
-                    cursor.execute("SELECT Name FROM PeopleData WHERE NameId = %s", (new_employee_id,))
-                    emp_result = cursor.fetchone()
-                    emp_name = emp_result['Name'] if emp_result else new_employee_id
+                    employee = self.session.get(PeopleData, new_employee_id)
+                    emp_name = employee.Name if employee else new_employee_id
                     
-                    cursor.execute("""
-                        INSERT INTO AssignmentHistory (AssetId, EmployeeId, EmployeeName, AssignedOn, IsActive)
-                        VALUES (%s, %s, %s, %s, TRUE)
-                    """, (asset_id, new_employee_id, emp_name, datetime.now().date()))
+                    history = AssignmentHistory(
+                        AssetId=asset_id,
+                        EmployeeId=new_employee_id,
+                        EmployeeName=emp_name,
+                        AssignedOn=datetime.now().date(),
+                        IsActive=True
+                    )
+                    self.session.add(history)
             
-            cursor.execute("""
-                UPDATE AssetData SET AssignedTo = %s, RepairStatus = %s WHERE AssetId = %s
-            """, (new_employee_id or None, repair_status, asset_id))
+            # Update asset
+            asset.AssignedTo = new_employee_id or None
+            asset.RepairStatus = repair_status
             
-            connection.commit()
+            self.session.commit()
             logger.info(f"UPDATE: Successfully updated '{asset_id}'")
             return {'success': True, 'message': f'Asset {asset_id} updated successfully'}
             
-        except Error as e:
-            connection.rollback()
+        except Exception as e:
+            self.session.rollback()
             logger.error(f"UPDATE: Error - {e}")
             raise
-        finally:
-            if connection.is_connected():
-                cursor.close()
-                connection.close()
     
-    def delete_bulk(self, asset_ids: list) -> dict:
+    def delete_bulk(self, asset_ids: List[str]) -> dict:
         """Delete multiple assets by their IDs."""
         logger.info(f"DELETE: Deleting {len(asset_ids)} assets")
-        connection = get_connection()
-        if not connection:
-            raise Exception("Database connection failed")
         
         try:
-            cursor = connection.cursor()
-            connection.start_transaction()
+            # SQLAlchemy cascade will handle related records
+            stmt = delete(AssetData).where(AssetData.AssetId.in_(asset_ids))
+            result = self.session.execute(stmt)
+            deleted_count = result.rowcount
             
-            format_strings = ','.join(['%s'] * len(asset_ids))
-            
-            cursor.execute(f"DELETE FROM SpecData WHERE AssetId IN ({format_strings})", tuple(asset_ids))
-            cursor.execute(f"DELETE FROM AssignmentHistory WHERE AssetId IN ({format_strings})", tuple(asset_ids))
-            cursor.execute(f"DELETE FROM AssetData WHERE AssetId IN ({format_strings})", tuple(asset_ids))
-            deleted_count = cursor.rowcount
-            
-            connection.commit()
+            self.session.commit()
             logger.info(f"DELETE: Successfully deleted {deleted_count} assets")
             
-            return {'success': True, 'deletedCount': deleted_count, 'message': f'Successfully deleted {deleted_count} asset(s)'}
+            return {
+                'success': True,
+                'deletedCount': deleted_count,
+                'message': f'Successfully deleted {deleted_count} asset(s)'
+            }
             
-        except Error as e:
-            connection.rollback()
+        except Exception as e:
+            self.session.rollback()
             logger.error(f"DELETE: Error - {e}")
             raise
-        finally:
-            if connection.is_connected():
-                cursor.close()
-                connection.close()

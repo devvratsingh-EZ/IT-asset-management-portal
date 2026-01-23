@@ -8,7 +8,7 @@ import UploadsSection from './UploadsSection';
 import SuccessNotification from './SuccessNotification';
 import { ExpandableSection } from '../common';
 import { Icons } from '../common/Icons';
-import { APP_CONFIG } from '../../data/constants';
+import { assetService, employeeService } from '../../services/api';
 
 /**
  * Searchable Asset Selector Component
@@ -140,22 +140,19 @@ const Dashboard = ({ user, onLogout, hideHeader = false }) => {
       setIsLoading(true);
       try {
         // Fetch assets
-        const assetsResponse = await fetch(`${APP_CONFIG.apiBaseUrl}/assets`);
-        const assetsData = await assetsResponse.json();
+        const assetsData = await assetService.getAssets();
         if (assetsData.success) {
           setAllAssets(assetsData.data);
         }
 
         // Fetch employees
-        const employeesResponse = await fetch(`${APP_CONFIG.apiBaseUrl}/employees`);
-        const employeesData = await employeesResponse.json();
+        const employeesData = await employeeService.getEmployees();
         if (employeesData.success) {
           setEmployees(employeesData.data);
         }
 
         // Fetch assignment history
-        const historyResponse = await fetch(`${APP_CONFIG.apiBaseUrl}/assignment-history`);
-        const historyData = await historyResponse.json();
+        const historyData = await assetService.getAllAssignmentHistory();
         if (historyData.success) {
           setAllAssignmentHistory(historyData.data);
         }
@@ -207,24 +204,16 @@ const Dashboard = ({ user, onLogout, hideHeader = false }) => {
 
   const handleUpdateSubmit = async (updatedData) => {
     try {
-      const response = await fetch(`${APP_CONFIG.apiBaseUrl}/assets/${assetData.assetId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedData)
-      });
-      
-      const result = await response.json();
+      const result = await assetService.updateAsset(assetData.assetId, updatedData);
       
       if (result.success) {
         // Refresh data
-        const assetsResponse = await fetch(`${APP_CONFIG.apiBaseUrl}/assets`);
-        const assetsData = await assetsResponse.json();
+        const assetsData = await assetService.getAssets();
         if (assetsData.success) {
           setAllAssets(assetsData.data);
         }
         
-        const historyResponse = await fetch(`${APP_CONFIG.apiBaseUrl}/assignment-history`);
-        const historyData = await historyResponse.json();
+        const historyData = await assetService.getAllAssignmentHistory();
         if (historyData.success) {
           setAllAssignmentHistory(historyData.data);
         }
