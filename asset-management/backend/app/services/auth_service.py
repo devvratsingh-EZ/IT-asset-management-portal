@@ -136,3 +136,12 @@ class AuthService:
         
         auth_repo = AuthRepository(self.session)
         return auth_repo.invalidate_refresh_token(user_id)
+    
+
+    def validate_refresh_for_logout(self, refresh_token: str) -> Optional[dict]:
+        """Validate refresh token for logout (just returns user info if valid)."""
+        if not self.session:
+            return None
+        
+        auth_repo = AuthRepository(self.session)
+        return auth_repo.validate_refresh_token(refresh_token)

@@ -133,19 +133,23 @@ async def refresh_token(
 
 @router.post("/logout")
 async def logout(
+    request: Request,
     response: Response,
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    refresh_token: Optional[str] = Cookie(None, alias=REFRESH_COOKIE_NAME)
 ):
-    """Logout and invalidate refresh token."""
-    auth_service = AuthService(db)
-    payload = auth_service.verify_token(credentials.credentials)
+    """Logout and invalidate refresh token (no auth required - uses cookie)."""
+    # Invalidate refresh token in DB if present
+    if refresh_token:
+        auth_service = AuthService(db)
+        user = auth_service.validate_refresh_for_logout(refresh_token)
+        if user:
+            auth_service.logout(user['id'])
+            logger.info(f"LOGOUT: Invalidated refresh token for user_id={user['id']}")
     
-    if payload:
-        user_id = payload.get('user_id', 0)
-        auth_service.logout(user_id)
-    
+    # Always clear cookie
     clear_refresh_cookie(response)
+    logger.info("LOGOUT: Refresh cookie cleared")
     return {"success": True, "message": "Logged out successfully"}
 
 

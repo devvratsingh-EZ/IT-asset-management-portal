@@ -260,11 +260,22 @@ export const authService = {
     logger.log(endpoint, method, 'Logout initiated');
     
     try {
-      await fetchApi(endpoint, { method }, method);
-      logger.success(endpoint, method, 'Logout successful');
+      // Use direct fetch instead of fetchApi - logout shouldn't require auth
+      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        method,
+        credentials: 'include',  // Send cookie for server to identify user
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      if (response.ok) {
+        logger.success(endpoint, method, 'Logout successful');
+      } else {
+        logger.error(endpoint, method, 'Logout response not ok', { status: response.status });
+      }
     } catch (e) {
-      logger.error(endpoint, method, 'Logout failed (continuing anyway)', e);
+      logger.error(endpoint, method, 'Logout failed', e);
     }
+    
     tokenManager.clearToken();
   },
 
@@ -375,11 +386,11 @@ export const assetService = {
   },
 
   async getAssignmentHistory(assetId) {
-    return fetchApi(`/assignment-history/${assetId}`, {}, 'GET');
+  return fetchApi(`/assets/assignment-history/${assetId}`, {}, 'GET');
   },
 
   async getAllAssignmentHistory() {
-    return fetchApi('/assignment-history', {}, 'GET');
+    return fetchApi('/assets/assignment-history', {}, 'GET');
   },
 };
 

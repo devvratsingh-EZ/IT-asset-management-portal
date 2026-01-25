@@ -135,11 +135,16 @@ function AssetManagementApp() {
     // No localStorage for tokens anymore
   };
 
-  const handleLogout = () => {
-    tokenManager.clearToken();
-    setIsAuthenticated(false);
-    setCurrentUser('');
-  };
+  const handleLogout = async () => {
+  try {
+    await authService.logout();
+  } catch (e) {
+    console.error('[APP] Logout API failed:', e);
+  }
+  tokenManager.clearToken();
+  setIsAuthenticated(false);
+  setCurrentUser('');
+};
 
   if (isLoading) {
     return (
