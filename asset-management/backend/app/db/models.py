@@ -51,7 +51,12 @@ class BrandData(Base):
     __tablename__ = "branddata"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    brand_name: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
+    brand_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    model_name : Mapped[str] = mapped_column(String(100), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint('brand_name', 'model_name', name='uq_brand_model'),
+    )
 
 
 class AssetSpecification(Base):
@@ -94,16 +99,17 @@ class AssetData(Base):
     Model: Mapped[Optional[str]] = mapped_column(String(200))
     DateOfPurchase: Mapped[Optional[date]] = mapped_column(Date)
     ProductCost: Mapped[Optional[float]] = mapped_column(Float)
+    LeaseCost: Mapped[Optional[float]] = mapped_column(Float)
     GST: Mapped[Optional[float]] = mapped_column(Float)
     WarrantyExpiry: Mapped[Optional[date]] = mapped_column(Date)
-
+    LeaseExpiry: Mapped[Optional[date]] = mapped_column(Date)
     AssignedTo: Mapped[Optional[str]] = mapped_column(
         ForeignKey("peopledata.NameId", ondelete="SET NULL")
     )
 
     RepairStatus: Mapped[bool] = mapped_column(TINYINT(1), nullable=False, default=0)
     IsTempAsset: Mapped[bool] = mapped_column(TINYINT(1), nullable=False, default=0)
-
+    IsRental: Mapped[bool] = mapped_column(TINYINT(1), nullable=False, default=0)
     AssetImagePath: Mapped[Optional[str]] = mapped_column(String(250))
     PurchaseReceiptsPath: Mapped[Optional[str]] = mapped_column(String(250))
     WarrantyCardPath: Mapped[Optional[str]] = mapped_column(String(250))
@@ -114,7 +120,6 @@ class AssetData(Base):
     UpdatedAt: Mapped[datetime] = mapped_column(
         TIMESTAMP, server_default=func.current_timestamp(), nullable=True
     )
-
     assigned_employee: Mapped[Optional["PeopleData"]] = relationship(back_populates="assigned_assets")
     spec_data: Mapped[List["SpecData"]] = relationship(back_populates="asset", cascade="all, delete-orphan")
     assignment_history: Mapped[List["AssignmentHistory"]] = relationship(back_populates="asset", cascade="all, delete-orphan")
@@ -165,7 +170,7 @@ class RepairStatusTracker(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     AssetId: Mapped[str] = mapped_column(ForeignKey("assetdata.AssetId", ondelete="CASCADE"), nullable=False)
-    TempAssetId: Mapped[str] = mapped_column(ForeignKey("assetdata.AssetId", ondelete="CASCADE"), nullable=False)
+    TempAssetId: Mapped[str] = mapped_column(ForeignKey("assetdata.AssetId", ondelete="CASCADE"), nullable=True)
 
     RepairStartTimestamp: Mapped[datetime] = mapped_column(
         TIMESTAMP, server_default=func.current_timestamp(), nullable=False

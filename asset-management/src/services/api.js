@@ -392,6 +392,49 @@ export const assetService = {
   async getAllAssignmentHistory() {
     return fetchApi('/assets/assignment-history', {}, 'GET');
   },
+  // Add these methods inside the assetService object
+
+  async getAssetBrands() {
+    return fetchApi('/assets/asset-brands', {}, 'GET');
+  },
+
+  async getAssetModels(brand = null) {
+    const endpoint = brand ? `/assets/asset-models?brand=${encodeURIComponent(brand)}` : '/assets/asset-models';
+    return fetchApi(endpoint, {}, 'GET');
+  },
+
+  async getBrandsByModel(model) {
+    return fetchApi(`/assets/asset-brands-by-model?model=${encodeURIComponent(model)}`, {}, 'GET');
+  },
+
+  async createBrandModel(brandName, modelName) {
+    return fetchApi('/assets/asset-brand-model', {
+      method: 'POST',
+      body: JSON.stringify({ brandName, modelName }),
+    }, 'POST');
+  },
+
+  async getAvailableTempAssets(assetId) {
+    return fetchApi(`/assets/available-temp-assets/${assetId}`, {}, 'GET');
+  },
+
+  async getRepairStatus(assetId) {
+    return fetchApi(`/assets/repair-status/${assetId}`, {}, 'GET');
+  },
+
+  async startRepair(assetId, repairDetails, tempAssetId = null) {
+    return fetchApi('/assets/repair/start', {
+      method: 'POST',
+      body: JSON.stringify({ assetId, repairDetails, tempAssetId }),
+    }, 'POST');
+  },
+
+  async endRepair(assetId) {
+    return fetchApi('/assets/repair/end', {
+      method: 'POST',
+      body: JSON.stringify({ assetId }),
+    }, 'POST');
+  },
 };
 
 /**

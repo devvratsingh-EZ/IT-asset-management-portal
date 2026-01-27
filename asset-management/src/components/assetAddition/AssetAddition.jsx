@@ -38,48 +38,73 @@ const AssetAddition = () => {
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Replace/add state variables (near the top with other useState)
+  const [brands, setBrands] = useState([]);
+  const [models, setModels] = useState([]);
+  const [allModels, setAllModels] = useState([]); // Store all models for filtering
+  const [isCreatingBrand, setIsCreatingBrand] = useState(false);
+  const [isCreatingModel, setIsCreatingModel] = useState(false);
+  const [newBrandName, setNewBrandName] = useState('');
+  const [newModelName, setNewModelName] = useState('');
   // Fetch data on mount
-  useEffect(() => {
-    const fetchData = async () => {
-      setIsLoadingData(true);
-      try {
-        console.log('Fetching initial data...');
-        // Fetch asset types
-        const typesData = await assetService.getAssetTypes();
-        if (typesData.success) {
-          setAssetTypes(typesData.data);
-        }
-
-        // Fetch all specifications
-        const specsData = await assetService.getSpecifications();
-        if (specsData.success) {
-          setAllSpecifications(specsData.data);
-        }
-
-        // Fetch employees
-        const employeesData = await employeeService.getEmployees();
-        if (employeesData.success) {
-          setEmployees(employeesData.data);
-        }
-        console.log('Employees fetched:', employeesData);
-      } catch (error) {
-        console.error('Failed to fetch data from API:', error);
-      } finally {
-        setIsLoadingData(false);
+  // Replace the fetchData function inside useEffect
+useEffect(() => {
+  const fetchData = async () => {
+    setIsLoadingData(true);
+    try {
+      console.log('Fetching initial data...');
+      // Fetch asset types
+      const typesData = await assetService.getAssetTypes();
+      if (typesData.success) {
+        setAssetTypes(typesData.data);
       }
-    };
 
-    fetchData();
-  }, []);
+      // Fetch all specifications
+      const specsData = await assetService.getSpecifications();
+      if (specsData.success) {
+        setAllSpecifications(specsData.data);
+      }
+
+      // Fetch employees
+      const employeesData = await employeeService.getEmployees();
+      if (employeesData.success) {
+        setEmployees(employeesData.data);
+      }
+
+      // Fetch brands
+      const brandsData = await assetService.getAssetBrands();
+      if (brandsData.success) {
+        setBrands(brandsData.data);
+      }
+
+      // Fetch all models (with brand info)
+      const modelsData = await assetService.getAssetModels();
+      if (modelsData.success) {
+        setAllModels(modelsData.data);
+        setModels(modelsData.data);
+      }
+
+      console.log('Employees fetched:', employeesData);
+    } catch (error) {
+      console.error('Failed to fetch data from API:', error);
+    } finally {
+      setIsLoadingData(false);
+    }
+  };
+
+  fetchData();
+}, []);
 
   const isBasicInfoComplete = useMemo(() => {
+    const brandValue = isCreatingBrand ? newBrandName.trim() : formData.brand;
+    const modelValue = isCreatingModel ? newModelName.trim() : formData.model;
     return (
       formData.assetType.trim() !== '' &&
       formData.serialNumber.trim() !== '' &&
-      formData.brand.trim() !== '' &&
-      formData.model.trim() !== ''
+      brandValue !== '' &&
+      modelValue !== ''
     );
-  }, [formData.assetType, formData.serialNumber, formData.brand, formData.model]);
+  }, [formData.assetType, formData.serialNumber, formData.brand, formData.model, isCreatingBrand, isCreatingModel, newBrandName, newModelName]);
 
   const specificationFields = useMemo(() => {
     if (!formData.assetType || !allSpecifications[formData.assetType]) {
@@ -135,6 +160,94 @@ const AssetAddition = () => {
     }
   };
 
+
+  const handleBrandChange = async (selectedBrand) => {
+    updateField('brand', selectedBrand);
+    
+    if (selectedBrand) {
+      // Filter models by selected brand
+      const filteredModels = allModels.filter(m => m.brand_name === selectedBrand);
+      setModels(filteredModels);
+      
+      // If current model doesn't belong to this brand, clear it
+      if (formData.model) {
+        const modelExists = filteredModels.some(m => m.model_name === formData.model);
+        if (!modelExists) {
+          updateField('model', '');
+        }
+      }
+    } else {
+      // Reset to all models
+      setModels(allModels);
+    }
+  };
+
+  const handleModelChange = async (selectedModel) => {
+    updateField('model', selectedModel);
+    
+    if (selectedModel && !formData.brand) {
+      // Find the brand for this model and auto-select it
+      const modelData = allModels.find(m => m.model_name === selectedModel);
+      if (modelData) {
+        updateField('brand', modelData.brand_name);
+        // Filter models to this brand
+        const filteredModels = allModels.filter(m => m.brand_name === modelData.brand_name);
+        setModels(filteredModels);
+      }
+    }
+  };
+
+  const handleCreateBrandModel = async () => {
+    if (!newBrandName.trim() || !newModelName.trim()) {
+      alert('Both brand name and model name are required');
+      return;
+    }
+
+    try {
+      const result = await assetService.createBrandModel(newBrandName.trim(), newModelName.trim());
+      if (result.success) {
+        // Update local state
+        const newEntry = { brand_name: newBrandName.trim(), model_name: newModelName.trim() };
+        setAllModels(prev => [...prev, newEntry]);
+        setModels(prev => [...prev, newEntry]);
+        
+        if (!brands.includes(newBrandName.trim())) {
+          setBrands(prev => [...prev, newBrandName.trim()].sort());
+        }
+
+        // Set the form values
+        updateField('brand', newBrandName.trim());
+        updateField('model', newModelName.trim());
+
+        // Reset create mode
+        setIsCreatingBrand(false);
+        setIsCreatingModel(false);
+        setNewBrandName('');
+        setNewModelName('');
+      }
+    } catch (error) {
+      console.error('Failed to create brand/model:', error);
+      alert('Failed to create brand/model: ' + error.message);
+    }
+  };
+
+  const toggleCreateBrandMode = () => {
+    setIsCreatingBrand(!isCreatingBrand);
+    if (!isCreatingBrand) {
+      setNewBrandName('');
+      // When entering create mode, also enable model creation
+      setIsCreatingModel(true);
+      setNewModelName('');
+    }
+  };
+
+  const toggleCreateModelMode = () => {
+    setIsCreatingModel(!isCreatingModel);
+    if (!isCreatingModel) {
+      setNewModelName('');
+    }
+  };
+
   const removeFile = (type, index) => {
     switch (type) {
       case 'images':
@@ -154,8 +267,15 @@ const AssetAddition = () => {
     const newErrors = {};
     if (!formData.assetType) newErrors.assetType = 'Asset type is required';
     if (!formData.serialNumber) newErrors.serialNumber = 'Serial number is required';
-    if (!formData.brand) newErrors.brand = 'Brand is required';
-    if (!formData.model) newErrors.model = 'Model is required';
+    
+    // Check brand - either from dropdown or create mode
+    const brandValue = isCreatingBrand ? newBrandName.trim() : formData.brand;
+    if (!brandValue) newErrors.brand = 'Brand is required';
+    
+    // Check model - either from dropdown or create mode
+    const modelValue = isCreatingModel ? newModelName.trim() : formData.model;
+    if (!modelValue) newErrors.model = 'Model is required';
+    
     if (!formData.purchaseDate) newErrors.purchaseDate = 'Purchase date is required';
     if (!formData.purchaseCost) newErrors.purchaseCost = 'Purchase cost is required';
     setErrors(newErrors);
@@ -173,8 +293,8 @@ const AssetAddition = () => {
     return {
       assetType: formData.assetType,
       serialNumber: formData.serialNumber,
-      brand: formData.brand,
-      model: formData.model,
+      brand: isCreatingBrand ? newBrandName.trim() : formData.brand,
+      model: isCreatingModel ? newModelName.trim() : formData.model,
       specifications: formData.specifications,
       purchaseDate: formData.purchaseDate,
       purchaseCost: parseFloat(formData.purchaseCost) || 0,
@@ -192,6 +312,30 @@ const AssetAddition = () => {
     
     try {
       const payload = preparePayload();
+      
+      // If creating new brand/model, save it first
+      if (isCreatingBrand || isCreatingModel) {
+        const brandName = isCreatingBrand ? newBrandName.trim() : formData.brand;
+        const modelName = isCreatingModel ? newModelName.trim() : formData.model;
+        
+        console.log('Creating new brand/model:', { brandName, modelName });
+        const brandModelResult = await assetService.createBrandModel(brandName, modelName);
+        
+        if (!brandModelResult.success) {
+          alert(`Failed to create brand/model: ${brandModelResult.message || 'Unknown error'}`);
+          setIsSubmitting(false);
+          return;
+        }
+        
+        // Update local cache for future use
+        const newEntry = { brand_name: brandName, model_name: modelName };
+        setAllModels(prev => [...prev, newEntry]);
+        setModels(prev => [...prev, newEntry]);
+        if (!brands.includes(brandName)) {
+          setBrands(prev => [...prev, brandName].sort());
+        }
+      }
+      
       console.log('Submitting asset payload:', payload);
       const result = await assetService.createAsset(payload);
       
@@ -238,6 +382,11 @@ const AssetAddition = () => {
     setWarrantyCards([]);
     setImagePreviews([]);
     setErrors({});
+    setIsCreatingBrand(false);
+    setIsCreatingModel(false);
+    setNewBrandName('');
+    setNewModelName('');
+    setModels(allModels); // Reset model filter
   };
 
   const lockedMessage = "Please complete all fields in Basic Information section first";
@@ -309,13 +458,39 @@ const AssetAddition = () => {
               <label className="asset-addition__label">
                 Brand <span className="asset-addition__required">*</span>
               </label>
-              <input
-                type="text"
-                value={formData.brand}
-                onChange={(e) => updateField('brand', e.target.value)}
-                placeholder="e.g., Dell, HP, Lenovo"
-                className={`asset-addition__input ${errors.brand ? 'asset-addition__input--error' : ''}`}
-              />
+              {isCreatingBrand ? (
+                <div className="asset-addition__create-field">
+                  <input
+                    type="text"
+                    value={newBrandName}
+                    onChange={(e) => setNewBrandName(e.target.value)}
+                    placeholder="Enter new brand name"
+                    className={`asset-addition__input ${errors.brand ? 'asset-addition__input--error' : ''}`}
+                  />
+                </div>
+              ) : (
+                <select
+                  value={formData.brand}
+                  onChange={(e) => handleBrandChange(e.target.value)}
+                  className={`asset-addition__select ${errors.brand ? 'asset-addition__select--error' : ''}`}
+                >
+                  <option value="">Select brand</option>
+                  {brands.map(brand => (
+                    <option key={brand} value={brand}>{brand}</option>
+                  ))}
+                </select>
+              )}
+                <button
+                  type="button"
+                  onClick={toggleCreateBrandMode}
+                  className="asset-addition__add-new-btn"
+                >
+                  {isCreatingBrand ? (
+                    <><Icons.ChevronLeft /> Select from list</>
+                  ) : (
+                    <><Icons.Plus /> Add new brand</>
+                  )}
+                </button>
               {errors.brand && <span className="asset-addition__error">{errors.brand}</span>}
             </div>
 
@@ -323,13 +498,44 @@ const AssetAddition = () => {
               <label className="asset-addition__label">
                 Model <span className="asset-addition__required">*</span>
               </label>
-              <input
-                type="text"
-                value={formData.model}
-                onChange={(e) => updateField('model', e.target.value)}
-                placeholder="e.g., Latitude 7420"
-                className={`asset-addition__input ${errors.model ? 'asset-addition__input--error' : ''}`}
-              />
+              {isCreatingModel ? (
+                <div className="asset-addition__create-field">
+                  <input
+                    type="text"
+                    value={newModelName}
+                    onChange={(e) => setNewModelName(e.target.value)}
+                    placeholder="Enter new model name"
+                    className={`asset-addition__input ${errors.model ? 'asset-addition__input--error' : ''}`}
+                  />
+                </div>
+              ) : (
+                <select
+                  value={formData.model}
+                  onChange={(e) => handleModelChange(e.target.value)}
+                  className={`asset-addition__select ${errors.model ? 'asset-addition__select--error' : ''}`}
+                >
+                  <option value="">Select model</option>
+                  {models.map(model => (
+                    <option key={`${model.brand_name}-${model.model_name}`} value={model.model_name}>
+                      {model.model_name}
+                    </option>
+                  ))}
+                </select>
+              )}
+              {!isCreatingBrand && (
+                // In the Model field button (the one inside !isCreatingBrand condition)
+                <button
+                  type="button"
+                  onClick={toggleCreateModelMode}
+                  className="asset-addition__add-new-btn"
+                >
+                  {isCreatingModel ? (
+                    <><Icons.ChevronLeft /> Select from list</>
+                  ) : (
+                    <><Icons.Plus /> Add new model</>
+                  )}
+                </button>
+              )}
               {errors.model && <span className="asset-addition__error">{errors.model}</span>}
             </div>
           </div>
