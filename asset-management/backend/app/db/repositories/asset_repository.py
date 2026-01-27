@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.db.repositories.base import BaseRepository
 from app.db.models import (
     AssetData, AssetType, AssetSpecification, SpecData,
-    AssignmentHistory, PeopleData, AssetIdCounter
+    AssignmentHistory, PeopleData, AssetIdCounter, BrandData, RepairStatusTracker
 )
 
 logger = logging.getLogger('db.asset_repository')
@@ -27,6 +27,60 @@ class AssetRepository(BaseRepository[AssetData]):
         stmt = select(AssetType).order_by(AssetType.type_name)
         types = self.session.scalars(stmt).all()
         return [{"id": t.id, "type_name": t.type_name} for t in types]
+    
+    # Add these new methods to the AssetRepository class
+
+    def get_brands(self) -> List[dict]:
+        """Get all unique asset brands."""
+        logger.info("FETCH: Getting all unique asset brands")
+        stmt = select(BrandData.brand_name).distinct().order_by(BrandData.brand_name)
+        brands = self.session.scalars(stmt).all()
+        return [{"brand_name": b} for b in brands]
+
+    def get_models(self) -> List[dict]:
+        """Get all asset models with their brands."""
+        logger.info("FETCH: Getting all asset models")
+        stmt = select(BrandData).order_by(BrandData.brand_name, BrandData.model_name)
+        models = self.session.scalars(stmt).all()
+        return [{"id": m.id, "brand_name": m.brand_name, "model_name": m.model_name} for m in models]
+
+    def get_models_by_brand(self, brand_name: str) -> List[dict]:
+        """Get models filtered by brand name."""
+        logger.info(f"FETCH: Getting models for brand '{brand_name}'")
+        stmt = select(BrandData).where(BrandData.brand_name == brand_name).order_by(BrandData.model_name)
+        models = self.session.scalars(stmt).all()
+        return [{"id": m.id, "model_name": m.model_name} for m in models]
+
+    def get_brands_by_model(self, model_name: str) -> List[dict]:
+        """Get brands filtered by model name."""
+        logger.info(f"FETCH: Getting brands for model '{model_name}'")
+        stmt = select(BrandData).where(BrandData.model_name == model_name).order_by(BrandData.brand_name)
+        brands = self.session.scalars(stmt).all()
+        return [{"id": b.id, "brand_name": b.brand_name} for b in brands]
+
+    def create_brand_model(self, brand_name: str, model_name: str) -> dict:
+        """Create a new brand-model entry."""
+        logger.info(f"CREATE: Adding brand '{brand_name}' with model '{model_name}'")
+        try:
+            # Check if combination already exists
+            stmt = select(BrandData).where(
+                BrandData.brand_name == brand_name,
+                BrandData.model_name == model_name
+            )
+            existing = self.session.scalars(stmt).first()
+            if existing:
+                logger.info(f"CREATE: Brand-model combination already exists (id={existing.id})")
+                return {"success": True, "id": existing.id, "message": "Brand-model combination already exists"}
+            
+            new_entry = BrandData(brand_name=brand_name, model_name=model_name)
+            self.session.add(new_entry)
+            self.session.commit()
+            logger.info(f"CREATE: Successfully added brand-model (id={new_entry.id})")
+            return {"success": True, "id": new_entry.id, "message": "Brand-model added successfully"}
+        except Exception as e:
+            self.session.rollback()
+            logger.error(f"CREATE: Error adding brand-model - {e}")
+            raise
     
     def get_all_specifications(self) -> Dict[str, dict]:
         """Get all specifications grouped by asset type."""
@@ -101,6 +155,7 @@ class AssetRepository(BaseRepository[AssetData]):
                 'specifications': specifications,
                 'assignedTo': asset.AssignedTo,
                 'repairStatus': bool(asset.RepairStatus),
+                'isTempAsset': bool(asset.IsTempAsset),
                 'warrantyExpiry': asset.WarrantyExpiry
             }
         
@@ -135,6 +190,7 @@ class AssetRepository(BaseRepository[AssetData]):
             'specifications': specifications,
             'assignedTo': asset.AssignedTo,
             'repairStatus': bool(asset.RepairStatus),
+            'isTempAsset': bool(asset.IsTempAsset),
             'warrantyExpiry': asset.WarrantyExpiry
         }
     
@@ -358,3 +414,140 @@ class AssetRepository(BaseRepository[AssetData]):
             self.session.rollback()
             logger.error(f"DELETE: Error - {e}")
             raise
+
+    def get_available_temp_assets(self, asset_type: str, exclude_asset_id: str) -> List[dict]:
+        """Get unassigned assets of same type for temp assignment."""
+        logger.info(f"FETCH: Getting available temp assets for type '{asset_type}'")
+        stmt = (
+            select(AssetData)
+            .where(AssetData.AssetType == asset_type)
+            .where(AssetData.AssignedTo == None)
+            .where(AssetData.AssetId != exclude_asset_id)
+            .where(AssetData.RepairStatus == False)
+            .where(AssetData.IsTempAsset == False)
+            .order_by(AssetData.AssetId)
+        )
+        assets = self.session.scalars(stmt).all()
+        return [{"assetId": a.AssetId, "serialNumber": a.SerialNo} for a in assets]
+
+def get_active_repair(self, asset_id: str) -> Optional[dict]:
+    """Get active repair record for an asset."""
+    logger.info(f"FETCH: Getting active repair for '{asset_id}'")
+    stmt = (
+        select(RepairStatusTracker)
+        .where(RepairStatusTracker.AssetId == asset_id)
+        .where(RepairStatusTracker.RepairEndTimestamp == None)
+    )
+    repair = self.session.scalars(stmt).first()
+    if not repair:
+        return None
+    return {
+        'id': repair.id,
+        'assetId': repair.AssetId,
+        'tempAssetId': repair.TempAssetId,
+        'repairDetails': repair.RepairDetails,
+        'repairStartTimestamp': repair.RepairStartTimestamp.isoformat() if repair.RepairStartTimestamp else None
+    }
+
+def start_repair(self, asset_id: str, repair_details: str, temp_asset_id: Optional[str] = None) -> dict:
+    """Start repair for an asset."""
+    logger.info(f"REPAIR START: Asset '{asset_id}', TempAsset='{temp_asset_id}'")
+    try:
+        asset = self.session.get(AssetData, asset_id)
+        if not asset:
+            raise Exception(f"Asset {asset_id} not found")
+        
+        current_employee_id = asset.AssignedTo
+        
+        # Set asset under repair
+        asset.RepairStatus = True
+        
+        # Handle temp asset assignment if employee is assigned and temp asset provided
+        if current_employee_id and temp_asset_id:
+            temp_asset = self.session.get(AssetData, temp_asset_id)
+            if not temp_asset:
+                raise Exception(f"Temp asset {temp_asset_id} not found")
+            
+            # Mark temp asset
+            temp_asset.IsTempAsset = True
+            temp_asset.AssignedTo = current_employee_id
+            
+            # Create assignment history for temp asset
+            employee = self.session.get(PeopleData, current_employee_id)
+            emp_name = employee.Name if employee else current_employee_id
+            
+            history = AssignmentHistory(
+                AssetId=temp_asset_id,
+                EmployeeId=current_employee_id,
+                EmployeeName=emp_name,
+                AssignedOn=datetime.now().date(),
+                IsActive=True
+            )
+            self.session.add(history)
+        
+        # Create repair tracker record
+        repair_record = RepairStatusTracker(
+            AssetId=asset_id,
+            TempAssetId=temp_asset_id if temp_asset_id else asset_id,  # Use same ID if no temp
+            RepairDetails=repair_details
+        )
+        self.session.add(repair_record)
+        
+        self.session.commit()
+        logger.info(f"REPAIR START: Successfully started repair for '{asset_id}'")
+        return {'success': True, 'message': f'Repair started for {asset_id}'}
+        
+    except Exception as e:
+        self.session.rollback()
+        logger.error(f"REPAIR START: Error - {e}")
+        raise
+
+def end_repair(self, asset_id: str) -> dict:
+    """End repair for an asset."""
+    logger.info(f"REPAIR END: Asset '{asset_id}'")
+    try:
+        asset = self.session.get(AssetData, asset_id)
+        if not asset:
+            raise Exception(f"Asset {asset_id} not found")
+        
+        # Get active repair record
+        stmt = (
+            select(RepairStatusTracker)
+            .where(RepairStatusTracker.AssetId == asset_id)
+            .where(RepairStatusTracker.RepairEndTimestamp == None)
+        )
+        repair = self.session.scalars(stmt).first()
+        
+        if not repair:
+            raise Exception(f"No active repair found for {asset_id}")
+        
+        # Handle temp asset if exists and is different from main asset
+        if repair.TempAssetId and repair.TempAssetId != asset_id:
+            temp_asset = self.session.get(AssetData, repair.TempAssetId)
+            if temp_asset and temp_asset.IsTempAsset:
+                # Close temp asset assignment
+                if temp_asset.AssignedTo:
+                    stmt = (
+                        update(AssignmentHistory)
+                        .where(AssignmentHistory.AssetId == repair.TempAssetId)
+                        .where(AssignmentHistory.IsActive == True)
+                        .values(ReturnedOn=datetime.now().date(), IsActive=False)
+                    )
+                    self.session.execute(stmt)
+                
+                # Reset temp asset
+                temp_asset.IsTempAsset = False
+                temp_asset.AssignedTo = None
+        
+        # End repair
+        repair.RepairEndTimestamp = datetime.now()
+        asset.RepairStatus = False
+        
+        self.session.commit()
+        logger.info(f"REPAIR END: Successfully ended repair for '{asset_id}'")
+        return {'success': True, 'message': f'Repair ended for {asset_id}'}
+        
+    except Exception as e:
+        self.session.rollback()
+        logger.error(f"REPAIR END: Error - {e}")
+        raise

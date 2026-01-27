@@ -18,7 +18,9 @@ CREATE TABLE AssetTypes (
 
 CREATE TABLE BrandData (
             id INT AUTO_INCREMENT PRIMARY KEY,
-            brand_name VARCHAR(100) UNIQUE NOT NULL
+            brand_name VARCHAR(100) NOT NULL,
+            model_name VARCHAR(100) NOT NULL,
+            UNIQUE KEY uq_brand_model (brand_name, model_name)
         );
 
 
@@ -49,11 +51,14 @@ CREATE TABLE AssetData(
             Model VARCHAR(200),
             DateOfPurchase DATE,
             ProductCost FLOAT,
+            LeaseCost FLOAT,
             GST FLOAT,
             WarrantyExpiry DATE,
+            LeaseExpiry DATE,
             AssignedTo VARCHAR(250),
             RepairStatus BOOL NOT NULL DEFAULT 0,
             IsTempStatus BOOL NOT NULL DEFAULT 0,
+            IsRental BOOL NOT NULL DEFAULT 0,
             AssetImagePath VARCHAR (250),
             PuchaseReceiptsPath VARCHAR(250),
             WarrantyCardPath VARCHAR(250),
@@ -110,17 +115,11 @@ CREATE OR REPLACE VIEW SummaryData AS
                 a.Model
             ORDER BY a.AssetType;
 
-
-CREATE TABLE BrandData(
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            brand_name VARCHAR(100) UNIQUE NOT NULL
-        );
-
 CREATE TABLE RepairStatusTracker (
             id INT AUTO_INCREMENT PRIMARY KEY,
             AssetId VARCHAR(100) NOT NULL,
             RepairStartTimestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            TempAssetId VARCHAR(100) NOT NULL,
+            TempAssetId VARCHAR(100) NULL,
             RepairEndTimestamp TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
             RepairDetails TEXT,
             FOREIGN KEY (AssetId) REFERENCES AssetData(AssetId) ON DELETE CASCADE,

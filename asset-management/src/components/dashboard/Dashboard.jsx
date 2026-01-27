@@ -131,8 +131,15 @@ const Dashboard = ({ user, onLogout, hideHeader = false }) => {
   const [updateSummary, setUpdateSummary] = useState(null);
 
   // Update form state
-  const [updateFormState, setUpdateFormState] = useState({ assignedTo: '', repairStatus: false });
+  const [updateFormState, setUpdateFormState] = useState({ 
+    assignedTo: '', 
+    repairStatus: false,
+    repairDetails: '',
+    tempAssetId: ''
+  });
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+
+  const [repairFormState, setRepairFormState] = useState({ repairDetails: '', tempAssetId: '' });
 
   // Fetch data from API on mount
   useEffect(() => {
@@ -183,8 +190,11 @@ const Dashboard = ({ user, onLogout, hideHeader = false }) => {
     if (assetData) {
       setUpdateFormState({
         assignedTo: assetData.assignedTo || '',
-        repairStatus: assetData.repairStatus || false
+        repairStatus: assetData.repairStatus || false,
+        repairDetails: '',
+        tempAssetId: ''
       });
+      setRepairFormState({ repairDetails: '', tempAssetId: '' });
     }
   }, [assetData]);
 
@@ -234,13 +244,82 @@ const Dashboard = ({ user, onLogout, hideHeader = false }) => {
     setUpdateFormState(prev => ({ ...prev, [field]: value }));
   };
 
+  const handleRepairDataChange = (repairData) => {
+    setRepairFormState(repairData);
+    setUpdateFormState(prev => ({
+      ...prev,
+      repairDetails: repairData.repairDetails,
+      tempAssetId: repairData.tempAssetId
+    }));
+  };
+
   const handleSaveClick = () => {
     setShowConfirmModal(true);
   };
 
   const handleConfirmSave = async () => {
     setShowConfirmModal(false);
-    await handleUpdateSubmit(updateFormState);
+    
+    try {
+      const wasUnderRepair = assetData.repairStatus;
+      const isNowUnderRepair = updateFormState.repairStatus;
+
+      // Handle repair status changes
+      if (!wasUnderRepair && isNowUnderRepair) {
+        // Starting repair
+        if (!updateFormState.repairDetails?.trim()) {
+          alert('Please provide repair details');
+          return;
+        }
+        
+        const repairResult = await assetService.startRepair(
+          assetData.assetId,
+          updateFormState.repairDetails,
+          updateFormState.tempAssetId || null
+        );
+        
+        if (!repairResult.success) {
+          alert('Failed to start repair');
+          return;
+        }
+      } else if (wasUnderRepair && !isNowUnderRepair) {
+        // Ending repair
+        const endResult = await assetService.endRepair(assetData.assetId);
+        if (!endResult.success) {
+          alert('Failed to end repair');
+          return;
+        }
+      }
+
+      // Update assignment if not under repair or repair status unchanged
+      if (!isNowUnderRepair || wasUnderRepair === isNowUnderRepair) {
+        await handleUpdateSubmit({
+          assignedTo: updateFormState.assignedTo,
+          repairStatus: updateFormState.repairStatus
+        });
+      } else {
+        // Refresh data after repair change
+        const assetsData = await assetService.getAssets();
+        if (assetsData.success) {
+          setAllAssets(assetsData.data);
+        }
+        
+        const historyData = await assetService.getAllAssignmentHistory();
+        if (historyData.success) {
+          setAllAssignmentHistory(historyData.data);
+        }
+        
+        setUpdateSummary({
+          assetId: assetData.assetId,
+          changes: 1
+        });
+        setShowSuccess(true);
+        setTimeout(() => setShowSuccess(false), 3000);
+      }
+    } catch (error) {
+      console.error('Failed to save changes:', error);
+      alert('Failed to save changes: ' + error.message);
+    }
   };
 
   const disabledMessage = "Please select an Asset ID first to view this section";
@@ -347,6 +426,7 @@ const Dashboard = ({ user, onLogout, hideHeader = false }) => {
                 employees={employees}
                 onFieldChange={handleFormFieldChange}
                 formState={updateFormState}
+                onRepairChange={handleRepairDataChange}
               />
             )}
           </ExpandableSection>

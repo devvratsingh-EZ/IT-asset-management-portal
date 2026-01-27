@@ -2,8 +2,8 @@
 import logging
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
-
-from app.models.requests import AssetCreateRequest, AssetUpdateRequest, BulkDeleteRequest
+from typing import Optional
+from app.models.requests import AssetCreateRequest, AssetUpdateRequest, BulkDeleteRequest, BrandModelCreateRequest, RepairStartRequest, RepairEndRequest
 from app.db.session import get_db
 from app.db.repositories.asset_repository import AssetRepository
 from app.dependencies import get_current_user
@@ -41,6 +41,63 @@ async def get_asset_types(
         "source": "fallback"
     }
 
+# Replace the empty stubs and add new endpoints
+
+@router.get("/asset-brands")
+async def get_asset_brands(
+    _current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get all unique asset brands."""
+    repo = AssetRepository(db)
+    brands = repo.get_brands()
+    if brands:
+        return {"success": True, "data": [b['brand_name'] for b in brands]}
+    return {"success": True, "data": [], "message": "No brands found"}
+
+
+@router.get("/asset-models")
+async def get_asset_models(
+    brand: Optional[str] = None,
+    _current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get all asset models, optionally filtered by brand."""
+    repo = AssetRepository(db)
+    if brand:
+        models = repo.get_models_by_brand(brand)
+        return {"success": True, "data": models}
+    models = repo.get_models()
+    return {"success": True, "data": models}
+
+
+@router.get("/asset-brands-by-model")
+async def get_brands_by_model(
+    model: str,
+    _current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get brands filtered by model name."""
+    repo = AssetRepository(db)
+    brands = repo.get_brands_by_model(model)
+    return {"success": True, "data": brands}
+
+
+@router.post("/asset-brand-model")
+async def create_brand_model(
+    request: BrandModelCreateRequest,
+    _current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Create a new brand-model entry."""
+    logger.info(f"CREATE BRAND-MODEL: Brand='{request.brandName}', Model='{request.modelName}'")
+    try:
+        repo = AssetRepository(db)
+        result = repo.create_brand_model(request.brandName, request.modelName)
+        return result
+    except Exception as e:
+        logger.error(f"CREATE BRAND-MODEL: Error - {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/specifications")
 async def get_all_specifications(
@@ -130,7 +187,6 @@ async def create_asset(
         logger.error(f"CREATE ASSET: Error - {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-
 @router.put("/{asset_id}")
 async def update_asset(
     asset_id: str,
@@ -168,4 +224,68 @@ async def bulk_delete_assets(
         return result
     except Exception as e:
         logger.error(f"BULK DELETE: Error - {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+    
+
+@router.get("/available-temp-assets/{asset_id}")
+async def get_available_temp_assets(
+    asset_id: str,
+    _current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get available temp assets for a given asset."""
+    logger.info(f"GET TEMP ASSETS: For asset '{asset_id}'")
+    repo = AssetRepository(db)
+    asset = repo.get_by_id(asset_id)
+    if not asset:
+        raise HTTPException(status_code=404, detail=f"Asset {asset_id} not found")
+    
+    available = repo.get_available_temp_assets(asset['assetType'], asset_id)
+    return {"success": True, "data": available}
+
+
+@router.get("/repair-status/{asset_id}")
+async def get_repair_status(
+    asset_id: str,
+    _current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get active repair status for an asset."""
+    logger.info(f"GET REPAIR STATUS: For asset '{asset_id}'")
+    repo = AssetRepository(db)
+    repair = repo.get_active_repair(asset_id)
+    return {"success": True, "data": repair}
+
+
+@router.post("/repair/start")
+async def start_repair(
+    request: RepairStartRequest,
+    _current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Start repair for an asset."""
+    logger.info(f"START REPAIR: Asset='{request.assetId}'")
+    try:
+        repo = AssetRepository(db)
+        result = repo.start_repair(request.assetId, request.repairDetails, request.tempAssetId)
+        return result
+    except Exception as e:
+        logger.error(f"START REPAIR: Error - {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/repair/end")
+async def end_repair(
+    request: RepairEndRequest,
+    _current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """End repair for an asset."""
+    logger.info(f"END REPAIR: Asset='{request.assetId}'")
+    try:
+        repo = AssetRepository(db)
+        result = repo.end_repair(request.assetId)
+        return result
+    except Exception as e:
+        logger.error(f"END REPAIR: Error - {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
