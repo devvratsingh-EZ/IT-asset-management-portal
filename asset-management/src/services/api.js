@@ -370,7 +370,7 @@ export const assetService = {
   async bulkDeleteAssets(assetIds) {
     return fetchApi('/assets/bulk-delete', {
       method: 'POST',
-      body: JSON.stringify({ asset_ids: assetIds }),
+      body: JSON.stringify({ assetIds }),  // Changed from asset_ids
     }, 'POST');
   },
 
