@@ -21,6 +21,9 @@ const AssetAddition = () => {
     purchaseCost: '',
     gstPaid: '',
     warrantyExpiry: null,
+    leaseCost: '',
+    leaseExpiry: null,
+    isRental: false,
     assignedTo: '',
     repairStatus: false,
   });
@@ -38,62 +41,45 @@ const AssetAddition = () => {
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Replace/add state variables (near the top with other useState)
+  // Brand/Model state
   const [brands, setBrands] = useState([]);
   const [models, setModels] = useState([]);
-  const [allModels, setAllModels] = useState([]); // Store all models for filtering
+  const [allModels, setAllModels] = useState([]);
   const [isCreatingBrand, setIsCreatingBrand] = useState(false);
   const [isCreatingModel, setIsCreatingModel] = useState(false);
   const [newBrandName, setNewBrandName] = useState('');
   const [newModelName, setNewModelName] = useState('');
+
   // Fetch data on mount
-  // Replace the fetchData function inside useEffect
-useEffect(() => {
-  const fetchData = async () => {
-    setIsLoadingData(true);
-    try {
-      console.log('Fetching initial data...');
-      // Fetch asset types
-      const typesData = await assetService.getAssetTypes();
-      if (typesData.success) {
-        setAssetTypes(typesData.data);
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsLoadingData(true);
+      try {
+        const typesData = await assetService.getAssetTypes();
+        if (typesData.success) setAssetTypes(typesData.data);
+
+        const specsData = await assetService.getSpecifications();
+        if (specsData.success) setAllSpecifications(specsData.data);
+
+        const employeesData = await employeeService.getEmployees();
+        if (employeesData.success) setEmployees(employeesData.data);
+
+        const brandsData = await assetService.getAssetBrands();
+        if (brandsData.success) setBrands(brandsData.data);
+
+        const modelsData = await assetService.getAssetModels();
+        if (modelsData.success) {
+          setAllModels(modelsData.data);
+          setModels(modelsData.data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch data from API:', error);
+      } finally {
+        setIsLoadingData(false);
       }
-
-      // Fetch all specifications
-      const specsData = await assetService.getSpecifications();
-      if (specsData.success) {
-        setAllSpecifications(specsData.data);
-      }
-
-      // Fetch employees
-      const employeesData = await employeeService.getEmployees();
-      if (employeesData.success) {
-        setEmployees(employeesData.data);
-      }
-
-      // Fetch brands
-      const brandsData = await assetService.getAssetBrands();
-      if (brandsData.success) {
-        setBrands(brandsData.data);
-      }
-
-      // Fetch all models (with brand info)
-      const modelsData = await assetService.getAssetModels();
-      if (modelsData.success) {
-        setAllModels(modelsData.data);
-        setModels(modelsData.data);
-      }
-
-      console.log('Employees fetched:', employeesData);
-    } catch (error) {
-      console.error('Failed to fetch data from API:', error);
-    } finally {
-      setIsLoadingData(false);
-    }
-  };
-
-  fetchData();
-}, []);
+    };
+    fetchData();
+  }, []);
 
   const isBasicInfoComplete = useMemo(() => {
     const brandValue = isCreatingBrand ? newBrandName.trim() : formData.brand;
@@ -107,17 +93,13 @@ useEffect(() => {
   }, [formData.assetType, formData.serialNumber, formData.brand, formData.model, isCreatingBrand, isCreatingModel, newBrandName, newModelName]);
 
   const specificationFields = useMemo(() => {
-    if (!formData.assetType || !allSpecifications[formData.assetType]) {
-      return [];
-    }
+    if (!formData.assetType || !allSpecifications[formData.assetType]) return [];
     return allSpecifications[formData.assetType].fields || [];
   }, [formData.assetType, allSpecifications]);
 
   const updateField = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: null }));
-    }
+    if (errors[field]) setErrors(prev => ({ ...prev, [field]: null }));
   };
 
   const updateSpecification = (key, value) => {
@@ -128,20 +110,26 @@ useEffect(() => {
   };
 
   const handleAssetTypeChange = (newType) => {
+    setFormData(prev => ({ ...prev, assetType: newType, specifications: {} }));
+    if (errors.assetType) setErrors(prev => ({ ...prev, assetType: null }));
+  };
+
+  const handleRentalToggle = () => {
+    const newIsRental = !formData.isRental;
     setFormData(prev => ({
       ...prev,
-      assetType: newType,
-      specifications: {}
+      isRental: newIsRental,
+      // Clear the fields that don't apply
+      purchaseCost: newIsRental ? '' : prev.purchaseCost,
+      warrantyExpiry: newIsRental ? null : prev.warrantyExpiry,
+      leaseCost: newIsRental ? prev.leaseCost : '',
+      leaseExpiry: newIsRental ? prev.leaseExpiry : null,
     }));
-    if (errors.assetType) {
-      setErrors(prev => ({ ...prev, assetType: null }));
-    }
   };
 
   const handleImageUpload = (e) => {
     const files = Array.from(e.target.files);
     setAssetImages(prev => [...prev, ...files]);
-    
     files.forEach(file => {
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -153,81 +141,33 @@ useEffect(() => {
 
   const handleDocUpload = (e, type) => {
     const files = Array.from(e.target.files);
-    if (type === 'receipts') {
-      setPurchaseReceipts(prev => [...prev, ...files]);
-    } else if (type === 'warranty') {
-      setWarrantyCards(prev => [...prev, ...files]);
-    }
+    if (type === 'receipts') setPurchaseReceipts(prev => [...prev, ...files]);
+    else if (type === 'warranty') setWarrantyCards(prev => [...prev, ...files]);
   };
-
 
   const handleBrandChange = async (selectedBrand) => {
     updateField('brand', selectedBrand);
-    
     if (selectedBrand) {
-      // Filter models by selected brand
       const filteredModels = allModels.filter(m => m.brand_name === selectedBrand);
       setModels(filteredModels);
-      
-      // If current model doesn't belong to this brand, clear it
       if (formData.model) {
         const modelExists = filteredModels.some(m => m.model_name === formData.model);
-        if (!modelExists) {
-          updateField('model', '');
-        }
+        if (!modelExists) updateField('model', '');
       }
     } else {
-      // Reset to all models
       setModels(allModels);
     }
   };
 
   const handleModelChange = async (selectedModel) => {
     updateField('model', selectedModel);
-    
     if (selectedModel && !formData.brand) {
-      // Find the brand for this model and auto-select it
       const modelData = allModels.find(m => m.model_name === selectedModel);
       if (modelData) {
         updateField('brand', modelData.brand_name);
-        // Filter models to this brand
         const filteredModels = allModels.filter(m => m.brand_name === modelData.brand_name);
         setModels(filteredModels);
       }
-    }
-  };
-
-  const handleCreateBrandModel = async () => {
-    if (!newBrandName.trim() || !newModelName.trim()) {
-      alert('Both brand name and model name are required');
-      return;
-    }
-
-    try {
-      const result = await assetService.createBrandModel(newBrandName.trim(), newModelName.trim());
-      if (result.success) {
-        // Update local state
-        const newEntry = { brand_name: newBrandName.trim(), model_name: newModelName.trim() };
-        setAllModels(prev => [...prev, newEntry]);
-        setModels(prev => [...prev, newEntry]);
-        
-        if (!brands.includes(newBrandName.trim())) {
-          setBrands(prev => [...prev, newBrandName.trim()].sort());
-        }
-
-        // Set the form values
-        updateField('brand', newBrandName.trim());
-        updateField('model', newModelName.trim());
-
-        // Reset create mode
-        setIsCreatingBrand(false);
-        setIsCreatingModel(false);
-        setNewBrandName('');
-        setNewModelName('');
-      }
-    } catch (error) {
-      console.error('Failed to create brand/model:', error);
-      alert('Failed to create brand/model: ' + error.message);
     }
   };
 
@@ -235,7 +175,6 @@ useEffect(() => {
     setIsCreatingBrand(!isCreatingBrand);
     if (!isCreatingBrand) {
       setNewBrandName('');
-      // When entering create mode, also enable model creation
       setIsCreatingModel(true);
       setNewModelName('');
     }
@@ -243,9 +182,7 @@ useEffect(() => {
 
   const toggleCreateModelMode = () => {
     setIsCreatingModel(!isCreatingModel);
-    if (!isCreatingModel) {
-      setNewModelName('');
-    }
+    if (!isCreatingModel) setNewModelName('');
   };
 
   const removeFile = (type, index) => {
@@ -268,24 +205,26 @@ useEffect(() => {
     if (!formData.assetType) newErrors.assetType = 'Asset type is required';
     if (!formData.serialNumber) newErrors.serialNumber = 'Serial number is required';
     
-    // Check brand - either from dropdown or create mode
     const brandValue = isCreatingBrand ? newBrandName.trim() : formData.brand;
     if (!brandValue) newErrors.brand = 'Brand is required';
     
-    // Check model - either from dropdown or create mode
     const modelValue = isCreatingModel ? newModelName.trim() : formData.model;
     if (!modelValue) newErrors.model = 'Model is required';
     
     if (!formData.purchaseDate) newErrors.purchaseDate = 'Purchase date is required';
-    if (!formData.purchaseCost) newErrors.purchaseCost = 'Purchase cost is required';
+    
+    if (formData.isRental) {
+      if (!formData.leaseCost) newErrors.leaseCost = 'Lease cost is required';
+    } else {
+      if (!formData.purchaseCost) newErrors.purchaseCost = 'Purchase cost is required';
+    }
+    
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handlePreview = () => {
-    if (validateForm()) {
-      setShowPreview(true);
-    }
+    if (validateForm()) setShowPreview(true);
   };
 
   const preparePayload = () => {
@@ -297,9 +236,12 @@ useEffect(() => {
       model: isCreatingModel ? newModelName.trim() : formData.model,
       specifications: formData.specifications,
       purchaseDate: formData.purchaseDate,
-      purchaseCost: parseFloat(formData.purchaseCost) || 0,
+      purchaseCost: formData.isRental ? null : (parseFloat(formData.purchaseCost) || 0),
       gstPaid: parseFloat(formData.gstPaid) || 0,
-      warrantyExpiry: formData.warrantyExpiry,
+      warrantyExpiry: formData.isRental ? null : formData.warrantyExpiry,
+      leaseCost: formData.isRental ? (parseFloat(formData.leaseCost) || 0) : null,
+      leaseExpiry: formData.isRental ? formData.leaseExpiry : null,
+      isRental: formData.isRental,
       assignedTo: formData.assignedTo || null,
       assignedToName: assignedToName,
       repairStatus: formData.repairStatus,
@@ -313,30 +255,23 @@ useEffect(() => {
     try {
       const payload = preparePayload();
       
-      // If creating new brand/model, save it first
       if (isCreatingBrand || isCreatingModel) {
         const brandName = isCreatingBrand ? newBrandName.trim() : formData.brand;
         const modelName = isCreatingModel ? newModelName.trim() : formData.model;
         
-        console.log('Creating new brand/model:', { brandName, modelName });
         const brandModelResult = await assetService.createBrandModel(brandName, modelName);
-        
         if (!brandModelResult.success) {
           alert(`Failed to create brand/model: ${brandModelResult.message || 'Unknown error'}`);
           setIsSubmitting(false);
           return;
         }
         
-        // Update local cache for future use
         const newEntry = { brand_name: brandName, model_name: modelName };
         setAllModels(prev => [...prev, newEntry]);
         setModels(prev => [...prev, newEntry]);
-        if (!brands.includes(brandName)) {
-          setBrands(prev => [...prev, brandName].sort());
-        }
+        if (!brands.includes(brandName)) setBrands(prev => [...prev, brandName].sort());
       }
       
-      console.log('Submitting asset payload:', payload);
       const result = await assetService.createAsset(payload);
       
       if (result.success) {
@@ -353,7 +288,6 @@ useEffect(() => {
         resetForm();
       } else {
         alert(`Failed to create asset: ${result.detail || result.message || 'Unknown error'}`);
-        console.error('Failed to create asset:', result);
       }
     } catch (error) {
       console.error('Error creating asset:', error);
@@ -374,6 +308,9 @@ useEffect(() => {
       purchaseCost: '',
       gstPaid: '',
       warrantyExpiry: null,
+      leaseCost: '',
+      leaseExpiry: null,
+      isRental: false,
       assignedTo: '',
       repairStatus: false,
     });
@@ -386,7 +323,7 @@ useEffect(() => {
     setIsCreatingModel(false);
     setNewBrandName('');
     setNewModelName('');
-    setModels(allModels); // Reset model filter
+    setModels(allModels);
   };
 
   const lockedMessage = "Please complete all fields in Basic Information section first";
@@ -417,11 +354,7 @@ useEffect(() => {
       )}
 
       <div className="asset-addition__sections">
-        <ExpandableSection
-          title="Basic Information"
-          icon={Icons.Package}
-          defaultExpanded={true}
-        >
+        <ExpandableSection title="Basic Information" icon={Icons.Package} defaultExpanded={true}>
           <div className="asset-addition__form-grid">
             <div className="asset-addition__field">
               <label className="asset-addition__label">
@@ -459,15 +392,13 @@ useEffect(() => {
                 Brand <span className="asset-addition__required">*</span>
               </label>
               {isCreatingBrand ? (
-                <div className="asset-addition__create-field">
-                  <input
-                    type="text"
-                    value={newBrandName}
-                    onChange={(e) => setNewBrandName(e.target.value)}
-                    placeholder="Enter new brand name"
-                    className={`asset-addition__input ${errors.brand ? 'asset-addition__input--error' : ''}`}
-                  />
-                </div>
+                <input
+                  type="text"
+                  value={newBrandName}
+                  onChange={(e) => setNewBrandName(e.target.value)}
+                  placeholder="Enter new brand name"
+                  className={`asset-addition__input ${errors.brand ? 'asset-addition__input--error' : ''}`}
+                />
               ) : (
                 <select
                   value={formData.brand}
@@ -480,17 +411,9 @@ useEffect(() => {
                   ))}
                 </select>
               )}
-                <button
-                  type="button"
-                  onClick={toggleCreateBrandMode}
-                  className="asset-addition__add-new-btn"
-                >
-                  {isCreatingBrand ? (
-                    <><Icons.ChevronLeft /> Select from list</>
-                  ) : (
-                    <><Icons.Plus /> Add new brand</>
-                  )}
-                </button>
+              <button type="button" onClick={toggleCreateBrandMode} className="asset-addition__add-new-btn">
+                {isCreatingBrand ? <><Icons.ChevronLeft /> Select from list</> : <><Icons.Plus /> Add new brand</>}
+              </button>
               {errors.brand && <span className="asset-addition__error">{errors.brand}</span>}
             </div>
 
@@ -499,15 +422,13 @@ useEffect(() => {
                 Model <span className="asset-addition__required">*</span>
               </label>
               {isCreatingModel ? (
-                <div className="asset-addition__create-field">
-                  <input
-                    type="text"
-                    value={newModelName}
-                    onChange={(e) => setNewModelName(e.target.value)}
-                    placeholder="Enter new model name"
-                    className={`asset-addition__input ${errors.model ? 'asset-addition__input--error' : ''}`}
-                  />
-                </div>
+                <input
+                  type="text"
+                  value={newModelName}
+                  onChange={(e) => setNewModelName(e.target.value)}
+                  placeholder="Enter new model name"
+                  className={`asset-addition__input ${errors.model ? 'asset-addition__input--error' : ''}`}
+                />
               ) : (
                 <select
                   value={formData.model}
@@ -523,20 +444,29 @@ useEffect(() => {
                 </select>
               )}
               {!isCreatingBrand && (
-                // In the Model field button (the one inside !isCreatingBrand condition)
-                <button
-                  type="button"
-                  onClick={toggleCreateModelMode}
-                  className="asset-addition__add-new-btn"
-                >
-                  {isCreatingModel ? (
-                    <><Icons.ChevronLeft /> Select from list</>
-                  ) : (
-                    <><Icons.Plus /> Add new model</>
-                  )}
+                <button type="button" onClick={toggleCreateModelMode} className="asset-addition__add-new-btn">
+                  {isCreatingModel ? <><Icons.ChevronLeft /> Select from list</> : <><Icons.Plus /> Add new model</>}
                 </button>
               )}
               {errors.model && <span className="asset-addition__error">{errors.model}</span>}
+            </div>
+
+            {/* Rental Asset Toggle */}
+            <div className="asset-addition__field" style={{ gridColumn: '1 / -1' }}>
+              <label className="asset-addition__label">Asset Ownership Type</label>
+              <button
+                type="button"
+                onClick={handleRentalToggle}
+                className={`asset-addition__toggle ${formData.isRental ? 'asset-addition__toggle--active' : ''}`}
+              >
+                <span className="asset-addition__toggle-label">
+                  <Icons.Building />
+                  {formData.isRental ? 'Rental / Leased Asset' : 'Purchased Asset'}
+                </span>
+                <div className={`asset-addition__toggle-switch ${formData.isRental ? 'asset-addition__toggle-switch--on' : ''}`}>
+                  <div className="asset-addition__toggle-knob" />
+                </div>
+              </button>
             </div>
           </div>
         </ExpandableSection>
@@ -570,7 +500,7 @@ useEffect(() => {
         </ExpandableSection>
 
         <ExpandableSection
-          title="Purchase Information"
+          title={formData.isRental ? "Lease Information" : "Purchase Information"}
           icon={Icons.Receipt}
           defaultExpanded={true}
           disabled={!isBasicInfoComplete}
@@ -586,48 +516,97 @@ useEffect(() => {
               {errors.purchaseDate && <span className="asset-addition__error">{errors.purchaseDate}</span>}
             </div>
 
-            <div className="asset-addition__field">
-              <label className="asset-addition__label">
-                Purchase Cost (₹) <span className="asset-addition__required">*</span>
-              </label>
-              <div className="asset-addition__input-with-icon">
-                <Icons.IndianRupee />
-                <input
-                  type="number"
-                  value={formData.purchaseCost}
-                  onChange={(e) => updateField('purchaseCost', e.target.value)}
-                  placeholder="Enter amount"
-                  min="0"
-                  step="0.01"
-                  className={`asset-addition__input asset-addition__input--with-icon ${errors.purchaseCost ? 'asset-addition__input--error' : ''}`}
-                />
-              </div>
-              {errors.purchaseCost && <span className="asset-addition__error">{errors.purchaseCost}</span>}
-            </div>
+            {formData.isRental ? (
+              <>
+                <div className="asset-addition__field">
+                  <label className="asset-addition__label">
+                    Lease Cost (₹) <span className="asset-addition__required">*</span>
+                  </label>
+                  <div className="asset-addition__input-with-icon">
+                    <Icons.IndianRupee />
+                    <input
+                      type="number"
+                      value={formData.leaseCost}
+                      onChange={(e) => updateField('leaseCost', e.target.value)}
+                      placeholder="Enter lease amount"
+                      min="0"
+                      step="0.01"
+                      className={`asset-addition__input asset-addition__input--with-icon ${errors.leaseCost ? 'asset-addition__input--error' : ''}`}
+                    />
+                  </div>
+                  {errors.leaseCost && <span className="asset-addition__error">{errors.leaseCost}</span>}
+                </div>
 
-            <div className="asset-addition__field">
-              <label className="asset-addition__label">GST Paid (₹)</label>
-              <div className="asset-addition__input-with-icon">
-                <Icons.IndianRupee />
-                <input
-                  type="number"
-                  value={formData.gstPaid}
-                  onChange={(e) => updateField('gstPaid', e.target.value)}
-                  placeholder="Enter GST amount"
-                  min="0"
-                  step="0.01"
-                  className="asset-addition__input asset-addition__input--with-icon"
-                />
-              </div>
-            </div>
+                <div className="asset-addition__field">
+                  <label className="asset-addition__label">GST Paid (₹)</label>
+                  <div className="asset-addition__input-with-icon">
+                    <Icons.IndianRupee />
+                    <input
+                      type="number"
+                      value={formData.gstPaid}
+                      onChange={(e) => updateField('gstPaid', e.target.value)}
+                      placeholder="Enter GST amount"
+                      min="0"
+                      step="0.01"
+                      className="asset-addition__input asset-addition__input--with-icon"
+                    />
+                  </div>
+                </div>
 
-            <div className="asset-addition__field">
-              <DatePicker
-                value={formData.warrantyExpiry}
-                onChange={(date) => updateField('warrantyExpiry', date)}
-                label="Warranty Expiry Date"
-              />
-            </div>
+                <div className="asset-addition__field">
+                  <DatePicker
+                    value={formData.leaseExpiry}
+                    onChange={(date) => updateField('leaseExpiry', date)}
+                    label="Lease Expiry Date"
+                  />
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="asset-addition__field">
+                  <label className="asset-addition__label">
+                    Purchase Cost (₹) <span className="asset-addition__required">*</span>
+                  </label>
+                  <div className="asset-addition__input-with-icon">
+                    <Icons.IndianRupee />
+                    <input
+                      type="number"
+                      value={formData.purchaseCost}
+                      onChange={(e) => updateField('purchaseCost', e.target.value)}
+                      placeholder="Enter amount"
+                      min="0"
+                      step="0.01"
+                      className={`asset-addition__input asset-addition__input--with-icon ${errors.purchaseCost ? 'asset-addition__input--error' : ''}`}
+                    />
+                  </div>
+                  {errors.purchaseCost && <span className="asset-addition__error">{errors.purchaseCost}</span>}
+                </div>
+
+                <div className="asset-addition__field">
+                  <label className="asset-addition__label">GST Paid (₹)</label>
+                  <div className="asset-addition__input-with-icon">
+                    <Icons.IndianRupee />
+                    <input
+                      type="number"
+                      value={formData.gstPaid}
+                      onChange={(e) => updateField('gstPaid', e.target.value)}
+                      placeholder="Enter GST amount"
+                      min="0"
+                      step="0.01"
+                      className="asset-addition__input asset-addition__input--with-icon"
+                    />
+                  </div>
+                </div>
+
+                <div className="asset-addition__field">
+                  <DatePicker
+                    value={formData.warrantyExpiry}
+                    onChange={(date) => updateField('warrantyExpiry', date)}
+                    label="Warranty Expiry Date"
+                  />
+                </div>
+              </>
+            )}
           </div>
         </ExpandableSection>
 
@@ -664,17 +643,9 @@ useEffect(() => {
         >
           <div className="asset-addition__uploads-grid">
             <div className="asset-addition__upload-section">
-              <h4 className="asset-addition__upload-title">
-                <Icons.Image /> Asset Images
-              </h4>
+              <h4 className="asset-addition__upload-title"><Icons.Image /> Asset Images</h4>
               <label className="asset-addition__dropzone">
-                <input
-                  type="file"
-                  multiple
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  className="asset-addition__file-input"
-                />
+                <input type="file" multiple accept="image/*" onChange={handleImageUpload} className="asset-addition__file-input" />
                 <Icons.Upload />
                 <span>Click or drag images here</span>
                 <span className="asset-addition__dropzone-hint">PNG, JPG up to 10MB</span>
@@ -684,13 +655,7 @@ useEffect(() => {
                   {imagePreviews.map((preview, index) => (
                     <div key={index} className="asset-addition__image-preview">
                       <img src={preview.url} alt={preview.name} />
-                      <button
-                        type="button"
-                        onClick={() => removeFile('images', index)}
-                        className="asset-addition__remove-btn"
-                      >
-                        <Icons.X />
-                      </button>
+                      <button type="button" onClick={() => removeFile('images', index)} className="asset-addition__remove-btn"><Icons.X /></button>
                     </div>
                   ))}
                 </div>
@@ -698,17 +663,9 @@ useEffect(() => {
             </div>
 
             <div className="asset-addition__upload-section">
-              <h4 className="asset-addition__upload-title">
-                <Icons.FileText /> Purchase Receipts
-              </h4>
+              <h4 className="asset-addition__upload-title"><Icons.FileText /> Purchase Receipts</h4>
               <label className="asset-addition__dropzone">
-                <input
-                  type="file"
-                  multiple
-                  accept=".pdf,.jpg,.jpeg,.png"
-                  onChange={(e) => handleDocUpload(e, 'receipts')}
-                  className="asset-addition__file-input"
-                />
+                <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => handleDocUpload(e, 'receipts')} className="asset-addition__file-input" />
                 <Icons.Upload />
                 <span>Click or drag files here</span>
                 <span className="asset-addition__dropzone-hint">PDF, Images up to 10MB</span>
@@ -719,13 +676,7 @@ useEffect(() => {
                     <div key={index} className="asset-addition__file-item">
                       <Icons.File />
                       <span className="asset-addition__file-name">{file.name}</span>
-                      <button
-                        type="button"
-                        onClick={() => removeFile('receipts', index)}
-                        className="asset-addition__remove-btn"
-                      >
-                        <Icons.X />
-                      </button>
+                      <button type="button" onClick={() => removeFile('receipts', index)} className="asset-addition__remove-btn"><Icons.X /></button>
                     </div>
                   ))}
                 </div>
@@ -733,17 +684,9 @@ useEffect(() => {
             </div>
 
             <div className="asset-addition__upload-section">
-              <h4 className="asset-addition__upload-title">
-                <Icons.Shield /> Warranty Cards
-              </h4>
+              <h4 className="asset-addition__upload-title"><Icons.Shield /> Warranty Cards</h4>
               <label className="asset-addition__dropzone">
-                <input
-                  type="file"
-                  multiple
-                  accept=".pdf,.jpg,.jpeg,.png"
-                  onChange={(e) => handleDocUpload(e, 'warranty')}
-                  className="asset-addition__file-input"
-                />
+                <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => handleDocUpload(e, 'warranty')} className="asset-addition__file-input" />
                 <Icons.Upload />
                 <span>Click or drag files here</span>
                 <span className="asset-addition__dropzone-hint">PDF, Images up to 10MB</span>
@@ -754,13 +697,7 @@ useEffect(() => {
                     <div key={index} className="asset-addition__file-item">
                       <Icons.File />
                       <span className="asset-addition__file-name">{file.name}</span>
-                      <button
-                        type="button"
-                        onClick={() => removeFile('warranty', index)}
-                        className="asset-addition__remove-btn"
-                      >
-                        <Icons.X />
-                      </button>
+                      <button type="button" onClick={() => removeFile('warranty', index)} className="asset-addition__remove-btn"><Icons.X /></button>
                     </div>
                   ))}
                 </div>
@@ -770,13 +707,7 @@ useEffect(() => {
         </ExpandableSection>
 
         <div className="asset-addition__actions">
-          <button
-            type="button"
-            onClick={resetForm}
-            className="asset-addition__reset-btn"
-          >
-            Reset Form
-          </button>
+          <button type="button" onClick={resetForm} className="asset-addition__reset-btn">Reset Form</button>
           <button
             type="button"
             onClick={handlePreview}
@@ -797,11 +728,7 @@ useEffect(() => {
         specificationFields={specificationFields}
       />
 
-      <SuccessNotification 
-        isVisible={showSuccess} 
-        summary={submitSummary}
-        isNewAsset={true}
-      />
+      <SuccessNotification isVisible={showSuccess} summary={submitSummary} isNewAsset={true} />
     </div>
   );
 };
