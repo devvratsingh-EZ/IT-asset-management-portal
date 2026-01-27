@@ -210,7 +210,7 @@ async def update_asset(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.delete("/bulk-delete")
+@router.post("/bulk-delete")
 async def bulk_delete_assets(
     request: BulkDeleteRequest,
     _current_user: dict = Depends(get_current_user),  # pylance: disable=unused-argument

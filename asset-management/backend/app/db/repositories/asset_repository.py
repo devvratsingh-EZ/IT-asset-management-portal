@@ -430,124 +430,130 @@ class AssetRepository(BaseRepository[AssetData]):
         assets = self.session.scalars(stmt).all()
         return [{"assetId": a.AssetId, "serialNumber": a.SerialNo} for a in assets]
 
-def get_active_repair(self, asset_id: str) -> Optional[dict]:
-    """Get active repair record for an asset."""
-    logger.info(f"FETCH: Getting active repair for '{asset_id}'")
-    stmt = (
-        select(RepairStatusTracker)
-        .where(RepairStatusTracker.AssetId == asset_id)
-        .where(RepairStatusTracker.RepairEndTimestamp == None)
-    )
-    repair = self.session.scalars(stmt).first()
-    if not repair:
-        return None
-    return {
-        'id': repair.id,
-        'assetId': repair.AssetId,
-        'tempAssetId': repair.TempAssetId,
-        'repairDetails': repair.RepairDetails,
-        'repairStartTimestamp': repair.RepairStartTimestamp.isoformat() if repair.RepairStartTimestamp else None
-    }
-
-def start_repair(self, asset_id: str, repair_details: str, temp_asset_id: Optional[str] = None) -> dict:
-    """Start repair for an asset."""
-    logger.info(f"REPAIR START: Asset '{asset_id}', TempAsset='{temp_asset_id}'")
-    try:
-        asset = self.session.get(AssetData, asset_id)
-        if not asset:
-            raise Exception(f"Asset {asset_id} not found")
-        
-        current_employee_id = asset.AssignedTo
-        
-        # Set asset under repair
-        asset.RepairStatus = True
-        
-        # Handle temp asset assignment if employee is assigned and temp asset provided
-        if current_employee_id and temp_asset_id:
-            temp_asset = self.session.get(AssetData, temp_asset_id)
-            if not temp_asset:
-                raise Exception(f"Temp asset {temp_asset_id} not found")
-            
-            # Mark temp asset
-            temp_asset.IsTempAsset = True
-            temp_asset.AssignedTo = current_employee_id
-            
-            # Create assignment history for temp asset
-            employee = self.session.get(PeopleData, current_employee_id)
-            emp_name = employee.Name if employee else current_employee_id
-            
-            history = AssignmentHistory(
-                AssetId=temp_asset_id,
-                EmployeeId=current_employee_id,
-                EmployeeName=emp_name,
-                AssignedOn=datetime.now().date(),
-                IsActive=True
-            )
-            self.session.add(history)
-        
-        # Create repair tracker record
-        repair_record = RepairStatusTracker(
-            AssetId=asset_id,
-            TempAssetId=temp_asset_id if temp_asset_id else asset_id,  # Use same ID if no temp
-            RepairDetails=repair_details
-        )
-        self.session.add(repair_record)
-        
-        self.session.commit()
-        logger.info(f"REPAIR START: Successfully started repair for '{asset_id}'")
-        return {'success': True, 'message': f'Repair started for {asset_id}'}
-        
-    except Exception as e:
-        self.session.rollback()
-        logger.error(f"REPAIR START: Error - {e}")
-        raise
-
-def end_repair(self, asset_id: str) -> dict:
-    """End repair for an asset."""
-    logger.info(f"REPAIR END: Asset '{asset_id}'")
-    try:
-        asset = self.session.get(AssetData, asset_id)
-        if not asset:
-            raise Exception(f"Asset {asset_id} not found")
-        
-        # Get active repair record
+    def get_active_repair(self, asset_id: str) -> Optional[dict]:
+        """Get active repair record for an asset."""
+        logger.info(f"FETCH: Getting active repair for '{asset_id}'")
         stmt = (
             select(RepairStatusTracker)
             .where(RepairStatusTracker.AssetId == asset_id)
             .where(RepairStatusTracker.RepairEndTimestamp == None)
         )
         repair = self.session.scalars(stmt).first()
-        
         if not repair:
-            raise Exception(f"No active repair found for {asset_id}")
-        
-        # Handle temp asset if exists and is different from main asset
-        if repair.TempAssetId and repair.TempAssetId != asset_id:
-            temp_asset = self.session.get(AssetData, repair.TempAssetId)
-            if temp_asset and temp_asset.IsTempAsset:
-                # Close temp asset assignment
-                if temp_asset.AssignedTo:
-                    stmt = (
-                        update(AssignmentHistory)
-                        .where(AssignmentHistory.AssetId == repair.TempAssetId)
-                        .where(AssignmentHistory.IsActive == True)
-                        .values(ReturnedOn=datetime.now().date(), IsActive=False)
-                    )
-                    self.session.execute(stmt)
+            return None
+        return {
+            'id': repair.id,
+            'assetId': repair.AssetId,
+            'tempAssetId': repair.TempAssetId,
+            'repairDetails': repair.RepairDetails,
+            'repairStartTimestamp': repair.RepairStartTimestamp.isoformat() if repair.RepairStartTimestamp else None
+        }
+
+    def start_repair(self, asset_id: str, repair_details: str, temp_asset_id: Optional[str] = None) -> dict:
+        """Start repair for an asset."""
+        logger.info(f"REPAIR START: Asset '{asset_id}', TempAsset='{temp_asset_id}'")
+        try:
+            asset = self.session.get(AssetData, asset_id)
+            if not asset:
+                raise Exception(f"Asset {asset_id} not found")
+            
+            current_employee_id = asset.AssignedTo
+            
+            # Set asset under repair
+            asset.RepairStatus = True
+            
+            # Handle temp asset assignment if employee is assigned and temp asset provided
+            if current_employee_id and temp_asset_id:
+                temp_asset = self.session.get(AssetData, temp_asset_id)
+                if not temp_asset:
+                    raise Exception(f"Temp asset {temp_asset_id} not found")
                 
-                # Reset temp asset
-                temp_asset.IsTempAsset = False
-                temp_asset.AssignedTo = None
-        
-        # End repair
-        repair.RepairEndTimestamp = datetime.now()
-        asset.RepairStatus = False
-        
-        self.session.commit()
-        logger.info(f"REPAIR END: Successfully ended repair for '{asset_id}'")
-        return {'success': True, 'message': f'Repair ended for {asset_id}'}
-        
-    except Exception as e:
-        self.session.rollback()
-        logger.error(f"REPAIR END: Error - {e}")
-        raise
+                # Mark temp asset
+                temp_asset.IsTempAsset = True
+                temp_asset.AssignedTo = current_employee_id
+                
+                # Create assignment history for temp asset
+                employee = self.session.get(PeopleData, current_employee_id)
+                emp_name = employee.Name if employee else current_employee_id
+                
+                history = AssignmentHistory(
+                    AssetId=temp_asset_id,
+                    EmployeeId=current_employee_id,
+                    EmployeeName=emp_name,
+                    AssignedOn=datetime.now().date(),
+                    IsActive=True
+                )
+                self.session.add(history)
+            
+            # Create repair tracker record
+            repair_record = RepairStatusTracker(
+                AssetId=asset_id,
+                TempAssetId=temp_asset_id if temp_asset_id else asset_id,
+                RepairDetails=repair_details
+            )
+            self.session.add(repair_record)
+            
+            self.session.commit()
+            logger.info(f"REPAIR START: Successfully started repair for '{asset_id}'")
+            return {'success': True, 'message': f'Repair started for {asset_id}'}
+            
+        except Exception as e:
+            self.session.rollback()
+            logger.error(f"REPAIR START: Error - {e}")
+            raise
+
+    def end_repair(self, asset_id: str) -> dict:
+        """End repair for an asset."""
+        logger.info(f"REPAIR END: Asset '{asset_id}'")
+        try:
+            asset = self.session.get(AssetData, asset_id)
+            if not asset:
+                raise Exception(f"Asset {asset_id} not found")
+            
+            # Get active repair record
+            stmt = (
+                select(RepairStatusTracker)
+                .where(RepairStatusTracker.AssetId == asset_id)
+                .where(RepairStatusTracker.RepairEndTimestamp == None)
+            )
+            repair = self.session.scalars(stmt).first()
+            
+            if not repair:
+                raise Exception(f"No active repair found for {asset_id}")
+            
+            # Handle temp asset if exists and is different from main asset
+            if repair.TempAssetId and repair.TempAssetId != asset_id:
+                temp_asset = self.session.get(AssetData, repair.TempAssetId)
+                if temp_asset and temp_asset.IsTempAsset:
+                    # Close temp asset assignment
+                    if temp_asset.AssignedTo:
+                        stmt = (
+                            update(AssignmentHistory)
+                            .where(AssignmentHistory.AssetId == repair.TempAssetId)
+                            .where(AssignmentHistory.IsActive == True)
+                            .values(ReturnedOn=datetime.now().date(), IsActive=False)
+                        )
+                        self.session.execute(stmt)
+                    
+                    # Reset temp asset
+                    temp_asset.IsTempAsset = False
+                    temp_asset.AssignedTo = None
+            
+            # End repair
+            repair.RepairEndTimestamp = datetime.now()
+            asset.RepairStatus = False
+            
+            self.session.commit()
+            logger.info(f"REPAIR END: Successfully ended repair for '{asset_id}'")
+            return {'success': True, 'message': f'Repair ended for {asset_id}'}
+            
+        except Exception as e:
+            self.session.rollback()
+            logger.error(f"REPAIR END: Error - {e}")
+            raise
+
+
+
+
+
+
