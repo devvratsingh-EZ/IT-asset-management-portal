@@ -9,21 +9,20 @@ class LoginRequest(BaseModel):
 
 
 class AssetCreateRequest(BaseModel):
-    serialNumber: str
     assetType: str
+    serialNumber: str
     brand: str
     model: str
-    specifications: Dict[str, str] = {}
+    specifications: dict = {}
     purchaseDate: Optional[str] = None
-    purchaseCost: Optional[float] = 0
-    leaseCost: Optional[float] = 0
-    gstPaid: float = 0
+    purchaseCost: Optional[float] = None
+    gstPaid: Optional[float] = None
     warrantyExpiry: Optional[str] = None
+    leaseCost: Optional[float] = None
     leaseExpiry: Optional[str] = None
+    isRental: bool = False
     assignedTo: Optional[str] = None
     repairStatus: bool = False
-    isRental: bool = False
-    isTempAsset: bool = False
 
 
 class AssetUpdateRequest(BaseModel):

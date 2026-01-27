@@ -371,8 +371,16 @@ const Dashboard = ({ user, onLogout, hideHeader = false }) => {
                   <p className="asset-overview__value asset-overview__value--emerald">{assetData.assetType}</p>
                 </div>
                 <div className="asset-overview__item">
-                  <p className="asset-overview__label">Warranty Expiry</p>
-                  <p className="asset-overview__value asset-overview__value--amber">{formatDate(assetData.warrantyExpiry)}</p>
+                  <p className="asset-overview__label">{assetData.isRental ? 'Lease Expiry' : 'Warranty Expiry'}</p>
+                  <p className="asset-overview__value asset-overview__value--amber">
+                    {formatDate(assetData.isRental ? assetData.leaseExpiry : assetData.warrantyExpiry)}
+                  </p>
+                </div>
+                <div className="asset-overview__item">
+                  <p className="asset-overview__label">Rental Status</p>
+                  <p className={`asset-overview__value ${assetData.isRental ? 'asset-overview__value--amber' : 'asset-overview__value--emerald'}`}>
+                    {assetData.isRental ? 'Yes' : 'No'}
+                  </p>
                 </div>
               </div>
             )}

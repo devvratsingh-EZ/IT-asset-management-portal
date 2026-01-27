@@ -156,7 +156,9 @@ class AssetRepository(BaseRepository[AssetData]):
                 'assignedTo': asset.AssignedTo,
                 'repairStatus': bool(asset.RepairStatus),
                 'isTempAsset': bool(asset.IsTempAsset),
-                'warrantyExpiry': asset.WarrantyExpiry
+                'isRental': bool(asset.IsRental),
+                'warrantyExpiry': asset.WarrantyExpiry,
+                'leaseExpiry': asset.LeaseExpiry
             }
         
         logger.info(f"FETCH: Retrieved {len(result)} assets")
@@ -191,7 +193,9 @@ class AssetRepository(BaseRepository[AssetData]):
             'assignedTo': asset.AssignedTo,
             'repairStatus': bool(asset.RepairStatus),
             'isTempAsset': bool(asset.IsTempAsset),
-            'warrantyExpiry': asset.WarrantyExpiry
+            'isRental': bool(asset.IsRental),
+            'warrantyExpiry': asset.WarrantyExpiry,
+            'leaseExpiry': asset.LeaseExpiry
         }
     
     def get_assignment_history(self, asset_id: str) -> List[dict]:
@@ -260,6 +264,7 @@ class AssetRepository(BaseRepository[AssetData]):
             # Parse dates
             purchase_date = asset_data.get('purchaseDate')
             warranty_expiry = asset_data.get('warrantyExpiry')
+            lease_expiry = asset_data.get('leaseExpiry')
             
             if isinstance(purchase_date, str) and purchase_date:
                 purchase_date = datetime.fromisoformat(
@@ -269,10 +274,15 @@ class AssetRepository(BaseRepository[AssetData]):
                 warranty_expiry = datetime.fromisoformat(
                     warranty_expiry.replace('Z', '+00:00')
                 ).date()
+            if isinstance(lease_expiry, str) and lease_expiry:
+                lease_expiry = datetime.fromisoformat(
+                    lease_expiry.replace('Z', '+00:00')
+                ).date()
             
             assigned_to = asset_data.get('assignedTo') or None
+            is_rental = asset_data.get('isRental', False)
             
-            # Create asset
+            # Create asset with conditional fields based on rental status
             asset = AssetData(
                 AssetId=asset_id,
                 SerialNo=asset_data.get('serialNumber'),
@@ -280,11 +290,14 @@ class AssetRepository(BaseRepository[AssetData]):
                 Brand=asset_data.get('brand'),
                 Model=asset_data.get('model'),
                 DateOfPurchase=purchase_date,
-                ProductCost=asset_data.get('purchaseCost', 0),
+                ProductCost=None if is_rental else asset_data.get('purchaseCost', 0),
+                LeaseCost=asset_data.get('leaseCost', 0) if is_rental else None,
                 GST=asset_data.get('gstPaid', 0),
-                WarrantyExpiry=warranty_expiry,
+                WarrantyExpiry=None if is_rental else warranty_expiry,
+                LeaseExpiry=lease_expiry if is_rental else None,
                 AssignedTo=assigned_to,
                 RepairStatus=asset_data.get('repairStatus', False),
+                IsRental=is_rental,
                 AssetImagePath="s3://dummy-bucket/assets/images/sample.jpg",
                 PurchaseReceiptsPath="s3://dummy-bucket/assets/receipts/sample.pdf",
                 WarrantyCardPath="s3://dummy-bucket/assets/warranty/sample.pdf"
